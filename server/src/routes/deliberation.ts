@@ -173,7 +173,7 @@ router.get('/stream', async (req: Request, res: Response) => {
         const TURN_COUNT = 2; // 一人2回発言（計10発言）の本格ディベート
 
         // フロントエンド上に「入室しました...」の待機演出を数秒間表示させるための初期ディレイ
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         // ターン制でディベートを進行する
         for (let turn = 1; turn <= TURN_COUNT; turn++) {

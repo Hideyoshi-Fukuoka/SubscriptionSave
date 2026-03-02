@@ -179,7 +179,13 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                                 </Button>
                             </div>
                         ) : (
-                            <div className="chat-container animate-fade-in mt-6">
+                            <div className="chat-container animate-fade-in mt-6 relative pt-12">
+                                {/* チャットルームのヘッダー情報 */}
+                                <div className="absolute top-0 left-0 right-0 bg-gray-900/60 backdrop-blur-md rounded-t-xl border-b border-gray-700/50 p-2 text-center text-xs text-gray-400 flex items-center justify-center gap-2 z-10">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <span>会議ルーム (参加者: 専門家{experts.length}名 + あなた)</span>
+                                </div>
+
                                 {messages.map((msg) => {
                                     const ex = experts.find(e => e.role === msg.role);
                                     if (!ex) return null;
@@ -214,11 +220,11 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                                 })}
                                 {/* 発言がまだ始まっていない場合のシークレット待機表示 */}
                                 {messages.length === 0 && (
-                                    <div className="chat-message opacity-50">
+                                    <div className="chat-message animate-pulse duration-1000">
                                         <div className="chat-avatar">🤖</div>
                                         <div className="chat-content">
-                                            <div className="chat-bubble">
-                                                <p>専門家達の会議ルームへ入室しました...</p>
+                                            <div className="chat-bubble bg-gray-800 border border-gray-700/50">
+                                                <p className="text-gray-300">専門家達の会議ルームへ入室しました...</p>
                                             </div>
                                         </div>
                                     </div>
