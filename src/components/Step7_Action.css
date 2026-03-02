@@ -1,0 +1,116 @@
+.action-panel {
+    max-width: 800px;
+    width: 100%;
+}
+
+.action-icon {
+    background: rgba(33, 150, 243, 0.1);
+    color: #4fc3f7;
+    animation: pulseRed 3s infinite ease-in-out;
+}
+
+@keyframes pulseRed {
+    0% {
+        box-shadow: 0 0 15px rgba(33, 150, 243, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 30px rgba(33, 150, 243, 0.6);
+    }
+
+    100% {
+        box-shadow: 0 0 15px rgba(33, 150, 243, 0.4);
+    }
+}
+
+.spinner-danger {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(33, 150, 243, 0.2);
+    border-top-color: #4fc3f7;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1.5rem;
+}
+
+.trap-alert {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #4fc3f7;
+    border-left: 4px solid #4fc3f7;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2.5rem;
+    text-align: left;
+}
+
+.trap-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    color: #4fc3f7;
+}
+
+.skull-danger {
+    animation: pulse 2s infinite;
+}
+
+.trap-list {
+    list-style: none;
+    padding: 0;
+}
+
+.trap-list li {
+    margin-bottom: 0.8rem;
+    padding-left: 1.5rem;
+    position: relative;
+    line-height: 1.5;
+}
+
+.trap-list li::before {
+    content: '⚠️';
+    position: absolute;
+    left: 0;
+    top: 2px;
+    font-size: 0.9rem;
+}
+
+.cancel-link-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    width: 100%;
+    background: linear-gradient(135deg, #1976d2, #0d47a1);
+    color: white;
+    padding: 1.5rem 2rem;
+    border-radius: 8px;
+    font-size: 1.3rem;
+    font-weight: 800;
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 10px 20px rgba(25, 118, 210, 0.4);
+    border: 1px solid #4fc3f7;
+    margin-bottom: 2.5rem;
+}
+
+.cancel-link-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 30px rgba(79, 195, 247, 0.6);
+    background: linear-gradient(135deg, #1e88e5, #1565c0);
+}
+
+.completion-check {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px dashed #4caf50;
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.check-icon {
+    color: #4caf50;
+}
