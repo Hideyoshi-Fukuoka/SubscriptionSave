@@ -191,13 +191,22 @@ router.get('/stream', async (req: Request, res: Response) => {
                             role: expert.role,
                             chunk_text: chunkText
                         })}\n\n`);
+                    },
+                    (score: number) => {
+                        if (isClientClosed) return;
+                        res.write(`data: ${JSON.stringify({
+                            type: 'agent_score',
+                            role: expert.role,
+                            score: score
+                        })}\n\n`);
                     }
                 );
 
-                expertFullText = debateResult;
+                expertFullText = debateResult.content;
+                const expertScore = debateResult.score;
 
                 // 次のエージェントへ渡すため、発言内容を履歴に保存
-                conversationHistory.push(`【${expert.role}（${expert.name}）の意見 (ターン${turn})】\n${expertFullText}`);
+                conversationHistory.push(`【${expert.role}（${expert.name}）の意見 (ターン${turn})】\n解約推奨度スコア: ${expertScore}/100\n理由: ${expertFullText}`);
 
                 // 擬似的な思考時間（ターン間のインターバル）
                 await new Promise(resolve => setTimeout(resolve, 1500));

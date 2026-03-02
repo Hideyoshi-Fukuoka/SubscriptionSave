@@ -20,6 +20,7 @@ interface ChatMessage {
     id: string;
     role: string;
     text: string;
+    score?: number;
     isFinished: boolean;
 }
 
@@ -105,6 +106,20 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                     }
                     return newMessages;
                 });
+            } else if (data.type === 'agent_score') {
+                // スコアを受信してメッセージに紐付ける
+                setMessages(prev => {
+                    if (prev.length === 0) return prev;
+                    const newMessages = [...prev];
+                    const lastIndex = newMessages.length - 1;
+                    if (newMessages[lastIndex].role === data.role) {
+                        newMessages[lastIndex] = {
+                            ...newMessages[lastIndex],
+                            score: data.score
+                        };
+                    }
+                    return newMessages;
+                });
             } else if (data.type === 'final_verdict') {
                 // 全員の議論終了通知
                 setMessages(prev => prev.map(m => ({ ...m, isFinished: true })));
@@ -170,7 +185,15 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                                             <div className="chat-content">
                                                 <div className="chat-name">
                                                     {ex.role} - {ex.name}
-                                                    {isCurrentlyTalking && <span className="text-blue-400 ml-2 animate-pulse">入力中...</span>}
+                                                    {msg.score !== undefined && (
+                                                        <span className={`ml-3 px-2 py-0.5 rounded text-xs font-bold ${msg.score >= 80 ? 'bg-red-500/20 text-red-400 border border-red-500/50' :
+                                                                msg.score >= 50 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' :
+                                                                    'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                                                            }`}>
+                                                            解約推奨度: {msg.score}
+                                                        </span>
+                                                    )}
+                                                    {isCurrentlyTalking && <span className="text-blue-400 ml-2 animate-pulse">判定中...</span>}
                                                 </div>
                                                 <div className={`chat-bubble tone-${ex.tone === '冷徹' ? 'logical' : ex.tone.includes('オカン') ? 'okan' : ex.tone.includes('高圧的') ? 'ceo' : 'emotional'}`}>
                                                     <p style={{ whiteSpace: 'pre-wrap' }}>
