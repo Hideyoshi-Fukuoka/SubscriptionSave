@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
 
 // CORS設定: Railway等の本番環境からAPIが叩けるように許可
 // 將来的には VITE_CLIENT_URL 等で厳格化することを推奨
@@ -26,6 +26,6 @@ app.get('/api/health', (req, res) => {
 // 議論用APIルーティング
 app.use('/api/v1/deliberation', deliberationRouter);
 
-app.listen(PORT as number, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
 });
