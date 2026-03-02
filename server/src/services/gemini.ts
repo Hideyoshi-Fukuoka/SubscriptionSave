@@ -153,11 +153,77 @@ export const fetchSubscriptionPrice = async (sub_name: string): Promise<number |
         const resultText = response.text?.trim();
         if (!resultText) return null;
 
-        const price = parseInt(resultText, 10);
+        // 文字列から「連続する数値（カンマ含む）」を抽出する
+        // 例: "約1,490円" や "Netflixは1,500円です" から "1,490", "1,500" を取り出す
+        const match = resultText.match(/\d+(?:,\d+)?/);
+        if (!match) return null;
+
+        const price = parseInt(match[0].replace(/,/g, ''), 10);
         return isNaN(price) ? null : price;
 
     } catch (error) {
         console.error('Gemini Price Fetch Error:', error);
         return null; // エラー時は処理を止めずnullを返し、フロントのフォールバックに任せる
+    }
+};
+
+export interface FutureValueAnalysis {
+    upcoming_contents: string[];
+    future_score: number; // 0〜10の熱狂度・期待度
+    summary: string;
+}
+
+/**
+ * スクレイピングにより取得したテキスト群を元に、
+ * 近日中の注目コンテンツや今後の熱狂度（未来価値）を算出して返す
+ */
+export const analyzeFutureValueContent = async (sub_name: string, scraped_text: string): Promise<FutureValueAnalysis | null> => {
+    // スクレイピングテキストが長すぎる場合は、先頭5000文字程度で打ち切る（トークン節約＆ノイズ削減）
+    const truncatedText = scraped_text.substring(0, 5000);
+
+    const prompt = `
+# Task
+あなたは情報要約の達人です。提供されたウェブページのテキスト群を読み解き、「${sub_name}」に関する**近日中（むこう3〜6ヶ月以内）の強力な配信予定や目玉コンテンツ**が存在するかを分析してください。
+
+# Input Data
+\`\`\`
+${truncatedText}
+\`\`\`
+
+# Instructions
+1. 対象サブスクの価値を引き上げる強力なコンテンツ（独占配信、大型IP、続編など）やニュースがあれば、最大3つまで簡潔にリストアップしてください。
+2. それらのラインナップから総合的に見て、今後継続すべき「未来価値のスコア」を0（全く価値なし・目玉ゼロ）から10（絶対に解約してはいけないレベルの熱狂）で診断してください。
+3. 全体の簡潔な要約コメントを作成してください。
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        upcoming_contents: {
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING },
+                            description: "目玉となる配信予定やコンテンツ。見つからなければ空配列。"
+                        },
+                        future_score: { type: Type.NUMBER, description: "未来価値のプレイスコア(0〜10の整数)" },
+                        summary: { type: Type.STRING, description: "全体の要約と、継続すべきかの見解コメント" }
+                    },
+                    required: ["upcoming_contents", "future_score", "summary"]
+                }
+            }
+        });
+
+        const resultText = response.text;
+        if (!resultText) return null;
+
+        return JSON.parse(resultText) as FutureValueAnalysis;
+    } catch (error) {
+        console.error('Gemini Future Analysis Error:', error);
+        return null;
     }
 };

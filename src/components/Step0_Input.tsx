@@ -14,6 +14,7 @@ interface Step0Props {
 
 const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, price, setPrice, onNext }) => {
     const [isSearching, setIsSearching] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
 
     const handleSearch = async () => {
         if (!subName.trim()) return;
@@ -28,6 +29,7 @@ const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, price, setPric
             setPrice(1500); // エラー時も入力画面には進ませる
         } finally {
             setIsSearching(false);
+            setHasSearched(true);
         }
     };
 
@@ -43,7 +45,7 @@ const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, price, setPric
                 私がその価値を徹底的に審議し、ドブに捨てているお金を浮き彫りにします。
             </p>
 
-            {!price ? (
+            {!hasSearched ? (
                 <div className="input-group">
                     <input
                         type="text"
@@ -70,8 +72,8 @@ const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, price, setPric
                             <input
                                 type="number"
                                 className="guardian-input text-center text-2xl font-bold w-32 bg-gray-800 border-b-2 border-red-500 focus:outline-none"
-                                value={price || ''}
-                                onChange={(e) => setPrice(Number(e.target.value))}
+                                value={price !== null ? price : ''}
+                                onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : null)}
                                 min="0"
                                 step="100"
                             />
@@ -83,10 +85,14 @@ const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, price, setPric
                     </p>
 
                     <div className="btn-group mt-6">
-                        <Button onClick={() => setPrice(null)} variant="secondary">
+                        <Button onClick={() => {
+                            setPrice(null);
+                            setHasSearched(false);
+                            setSubName('');
+                        }} variant="secondary">
                             やり直す
                         </Button>
-                        <Button onClick={onNext} variant="danger" disabled={!price || price <= 0}>
+                        <Button onClick={onNext} variant="danger" disabled={price === null || price <= 0}>
                             はい、審議へ進む
                         </Button>
                     </div>
