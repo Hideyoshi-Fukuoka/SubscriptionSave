@@ -26,6 +26,6 @@ app.get('/api/health', (req, res) => {
 // 議論用APIルーティング
 app.use('/api/v1/deliberation', deliberationRouter);
 
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+app.listen(PORT as number, '0.0.0.0', () => {
+    console.log(`Server is running on port ${PORT}`);
 });
