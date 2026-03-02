@@ -33,7 +33,7 @@ function App() {
           />
         );
       case 1:
-        return <Step1_Experts subName={subName} onNext={() => setStep(2)} />;
+        return <Step1_Experts subName={subName} price={price} onNext={() => setStep(2)} />;
       case 2:
         return (
           <Step2_Hearing

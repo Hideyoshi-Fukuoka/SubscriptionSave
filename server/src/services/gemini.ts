@@ -80,6 +80,7 @@ export const generateExpertSelection = async (
 
 export const streamExpertDebate = async (
     sub_name: string,
+    price: number | null,
     expert: ExpertData,
     conversationHistory: string[],
     onChunk: (text: string) => void,
@@ -99,6 +100,7 @@ export const streamExpertDebate = async (
 
 # Target
 対象サブスクリプション: ${sub_name}
+${price !== null ? `現在の月額料金: ${price}円` : ''}
 
 # Instruction
 ${historyText}

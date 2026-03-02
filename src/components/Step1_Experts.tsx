@@ -5,6 +5,7 @@ import './Step1_Experts.css';
 
 interface Step1Props {
     subName: string;
+    price: number | null;
     onNext: () => void;
 }
 
@@ -24,7 +25,7 @@ interface ChatMessage {
     isFinished: boolean;
 }
 
-export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
+export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) => {
     const [showDebate, setShowDebate] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState('Orchestratorが最適な専門家を召喚中...');
 
@@ -53,7 +54,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
         const setupDeliberation = async () => {
             try {
                 // 1. Session Initiate (Orchestratorによる動的アサイン)
-                const sessionData = await initiateDeliberation(subName);
+                const sessionData = await initiateDeliberation(subName, price);
                 if (!isMounted) return;
 
                 setSessionId(sessionData.session_id);

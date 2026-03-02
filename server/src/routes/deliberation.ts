@@ -96,6 +96,7 @@ router.post('/initiate', async (req: Request, res: Response) => {
             id: sessionId,
             target: name,
             category,
+            price,
             experts: selectedExperts,
             status: 'initialized'
         };
@@ -198,6 +199,7 @@ router.get('/stream', async (req: Request, res: Response) => {
                 // Geminiストリーミングを呼び出し、チャンクが届くたびにSSEで送出
                 const debateResult = await streamExpertDebate(
                     session.target,
+                    session.price || null,
                     expert,
                     conversationHistory,
                     (chunkText: string) => {

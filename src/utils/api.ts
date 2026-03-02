@@ -24,6 +24,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/
  */
 export const initiateDeliberation = async (
     subName: string,
+    price: number | null,
     category: string = 'unknown',
     userContext: any = {}
 ): Promise<DeliberationSession> => {
@@ -36,6 +37,7 @@ export const initiateDeliberation = async (
             body: JSON.stringify({
                 subscription_id: `sub_${Date.now()}`,
                 name: subName,
+                price: price,
                 category,
                 user_context: userContext
             }),
