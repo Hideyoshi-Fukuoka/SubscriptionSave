@@ -132,6 +132,9 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                 setMessages(prev => prev.map(m => ({ ...m, isFinished: true })));
                 setDebateFinished(true);
                 sse.close();
+            } else if (data.type === 'ping') {
+                // バックエンドからのハートビート（タイムアウト防止用）は無視して接続を維持
+                // console.log('Heartbeat received.');
             }
         });
 
