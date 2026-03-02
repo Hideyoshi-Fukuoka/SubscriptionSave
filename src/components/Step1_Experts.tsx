@@ -14,9 +14,13 @@ import { initiateDeliberation, subscribeToDeliberationStream } from '../utils/ap
 // UI描画用にセッション中の状態を保持する拡張型
 interface ActiveExpert extends ExpertSelection {
     avatar: string; // クライアント側でアイコン(絵文字等)を補完する
-    currentChunkText: string;
+}
+
+interface ChatMessage {
+    id: string;
+    role: string;
+    text: string;
     isFinished: boolean;
-    isActive: boolean; // 現在のターンかどうか
 }
 
 export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
@@ -26,6 +30,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
     // セッションとSSEの参照
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [experts, setExperts] = useState<ActiveExpert[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
 
     // 全員の議論が終わったか
     const [debateFinished, setDebateFinished] = useState(false);
@@ -54,10 +59,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                 // 初期状態のエキスパートリストをフロント用に拡張してセット
                 const initialExperts = sessionData.expert_selection.map((ex: ExpertSelection) => ({
                     ...ex,
-                    avatar: getAvatarForRole(ex.role),
-                    currentChunkText: '',
-                    isFinished: false,
-                    isActive: false
+                    avatar: getAvatarForRole(ex.role)
                 }));
                 setExperts(initialExperts);
                 setLoadingMsg('');
@@ -80,35 +82,32 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
         const sse = subscribeToDeliberationStream(sessionId, (data) => {
             if (data.type === 'connected') {
                 console.log('SSE Connected');
+            } else if (data.type === 'agent_start') {
+                // 新しい発言（吹き出し）を開始する
+                setMessages(prev => {
+                    // 以前のすべてのメッセージを「完了」にする
+                    const markedPrev = prev.map(m => ({ ...m, isFinished: true }));
+                    const msgId = `${data.role}_${data.turn}`;
+                    return [...markedPrev, { id: msgId, role: data.role, text: '', isFinished: false }];
+                });
             } else if (data.type === 'agent_chunk') {
-                // チャンクが届き始めた専門家は「自分のターンが来た」とみなす
-                setExperts(prev => {
-                    let updated = false;
-                    const nextExperts = prev.map(ex => {
-                        if (ex.role === data.role) {
-                            updated = true;
-                            // isActiveフラグ（独自のUI表示用）をtrueにする
-                            return { ...ex, currentChunkText: ex.currentChunkText + data.chunk_text, isActive: true };
-                        }
-                        // 前の人がisActiveになっていれば、その人のisFinishedをtrueに（大雑把なターン判定）
-                        if (updated && ex.isActive && !ex.isFinished) {
-                            // 厳密には前の人を完了としてマークする処理を入れることも可能だが
-                            // 今回はシンプルにchunk_textが追加されていくかで判定
-                        }
-                        return ex;
-                    });
-
-                    // 自分自身の前の専門家は「議論終了」とマークする処理
-                    let currentActiveIndex = nextExperts.findIndex(e => e.role === data.role);
-                    if (currentActiveIndex > 0) {
-                        nextExperts[currentActiveIndex - 1].isFinished = true;
+                // チャンクを受信して最後のメッセージに追記する
+                setMessages(prev => {
+                    if (prev.length === 0) return prev;
+                    const newMessages = [...prev];
+                    const lastIndex = newMessages.length - 1;
+                    // ロールが一致している場合のみ追記（念のため）
+                    if (newMessages[lastIndex].role === data.role) {
+                        newMessages[lastIndex] = {
+                            ...newMessages[lastIndex],
+                            text: newMessages[lastIndex].text + data.chunk_text
+                        };
                     }
-
-                    return nextExperts;
+                    return newMessages;
                 });
             } else if (data.type === 'final_verdict') {
                 // 全員の議論終了通知
-                setExperts(prev => prev.map(ex => ({ ...ex, isFinished: true })));
+                setMessages(prev => prev.map(m => ({ ...m, isFinished: true })));
                 setDebateFinished(true);
                 sse.close();
             }
@@ -159,15 +158,14 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                             </div>
                         ) : (
                             <div className="chat-container animate-fade-in mt-6">
-                                {experts.map((ex, idx) => {
-                                    // 自分のターンが来ていない（チャンクがない）専門家はまだ見せないか薄く表示
-                                    const isWaiting = !ex.currentChunkText && !ex.isActive;
-                                    const isCurrentlyTalking = ex.isActive && !ex.isFinished;
+                                {messages.map((msg) => {
+                                    const ex = experts.find(e => e.role === msg.role);
+                                    if (!ex) return null;
 
-                                    if (isWaiting && !showDebate) return null; // 開始前は隠す
+                                    const isCurrentlyTalking = !msg.isFinished && !debateFinished;
 
                                     return (
-                                        <div key={idx} className={`chat-message ${isWaiting ? 'opacity-30' : ''}`}>
+                                        <div key={msg.id} className="chat-message animate-fade-in">
                                             <div className="chat-avatar">{ex.avatar}</div>
                                             <div className="chat-content">
                                                 <div className="chat-name">
@@ -176,7 +174,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                                                 </div>
                                                 <div className={`chat-bubble tone-${ex.tone === '冷徹' ? 'logical' : ex.tone.includes('オカン') ? 'okan' : ex.tone.includes('高圧的') ? 'ceo' : 'emotional'}`}>
                                                     <p style={{ whiteSpace: 'pre-wrap' }}>
-                                                        {ex.currentChunkText || (isWaiting ? "..." : "")}
+                                                        {msg.text}
                                                         {isCurrentlyTalking && <span className="animate-pulse">|</span>}
                                                     </p>
                                                 </div>
@@ -184,6 +182,17 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                                         </div>
                                     );
                                 })}
+                                {/* 発言がまだ始まっていない場合のシークレット待機表示 */}
+                                {messages.length === 0 && (
+                                    <div className="chat-message opacity-50">
+                                        <div className="chat-avatar">🤖</div>
+                                        <div className="chat-content">
+                                            <div className="chat-bubble">
+                                                <p>専門家達の会議ルームへ入室しました...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 {debateFinished && (
                                     <div className="next-action-box animate-fade-in" style={{ animationDelay: '0.5s' }}>
                                         <p>専門家たちの推論と議論が完了しました。次はあなたの「今の利用状況」を教えてください。</p>

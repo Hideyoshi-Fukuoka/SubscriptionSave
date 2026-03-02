@@ -132,34 +132,45 @@ router.get('/stream', async (req: Request, res: Response) => {
     });
 
     try {
-        // 各専門家（エージェント）ごとにターン制でディベートを進行する
-        for (const expert of session.experts as ExpertData[]) {
-            if (isClientClosed) break;
+        const TURN_COUNT = 2; // 一人2回発言（計10発言）の本格ディベート
 
-            let expertFullText = "";
+        // ターン制でディベートを進行する
+        for (let turn = 1; turn <= TURN_COUNT; turn++) {
+            for (const expert of session.experts as ExpertData[]) {
+                if (isClientClosed) break;
 
-            // Geminiストリーミングを呼び出し、チャンクが届くたびにSSEで送出
-            const debateResult = await streamExpertDebate(
-                session.target,
-                expert,
-                conversationHistory,
-                (chunkText: string) => {
-                    if (isClientClosed) return;
-                    res.write(`data: ${JSON.stringify({
-                        type: 'agent_chunk',
-                        role: expert.role,
-                        chunk_text: chunkText
-                    })}\n\n`);
-                }
-            );
+                let expertFullText = "";
 
-            expertFullText = debateResult;
+                // フロント側で「新しい発言バブルを作る」キックオフイベントを送信
+                res.write(`data: ${JSON.stringify({
+                    type: 'agent_start',
+                    role: expert.role,
+                    turn: turn
+                })}\n\n`);
 
-            // 次のエージェントへ渡すため、発言内容を履歴に保存
-            conversationHistory.push(`【${expert.role}（${expert.name}）の意見】\n${expertFullText}`);
+                // Geminiストリーミングを呼び出し、チャンクが届くたびにSSEで送出
+                const debateResult = await streamExpertDebate(
+                    session.target,
+                    expert,
+                    conversationHistory,
+                    (chunkText: string) => {
+                        if (isClientClosed) return;
+                        res.write(`data: ${JSON.stringify({
+                            type: 'agent_chunk',
+                            role: expert.role,
+                            chunk_text: chunkText
+                        })}\n\n`);
+                    }
+                );
 
-            // 擬似的な思考時間（ターン間のインターバル）
-            await new Promise(resolve => setTimeout(resolve, 1000));
+                expertFullText = debateResult;
+
+                // 次のエージェントへ渡すため、発言内容を履歴に保存
+                conversationHistory.push(`【${expert.role}（${expert.name}）の意見 (ターン${turn})】\n${expertFullText}`);
+
+                // 擬似的な思考時間（ターン間のインターバル）
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
         }
 
         if (!isClientClosed) {
