@@ -10,10 +10,11 @@ import { Step7_Action } from './components/Step7_Action';
 function App() {
   const [step, setStep] = useState<number>(0);
   const [subName, setSubName] = useState<string>('');
+  const [price, setPrice] = useState<number | null>(null);
 
   // 後続ステップで使う状態群
   const [frequency, setFrequency] = useState<number | null>(null);
-  const [reason, setReason] = useState<number | null>(null);
+  const [reason, setReason] = useState<number[]>([]);
   const [satisfaction, setSatisfaction] = useState<number | null>(null);
 
   // To avoid unused variable warning, we can log them or just ignore them since it's a mock
@@ -26,6 +27,8 @@ function App() {
           <Step0_Input
             subName={subName}
             setSubName={setSubName}
+            price={price}
+            setPrice={setPrice}
             onNext={() => setStep(1)}
           />
         );
@@ -48,14 +51,15 @@ function App() {
         return (
           <Step5_Evaluation
             subName={subName}
-            wasteAmount={1500 * (100 - (frequency === 1 ? 100 : frequency === 2 ? 70 : frequency === 3 ? 30 : frequency === 4 ? 5 : 0)) / 100}
+            wasteAmount={(price || 1500) * (100 - (frequency === 1 ? 100 : frequency === 2 ? 70 : frequency === 3 ? 30 : frequency === 4 ? 5 : 0)) / 100}
             setSatisfaction={setSatisfaction}
             onNext={() => setStep(7)}
             onReset={() => {
               setStep(0);
               setSubName('');
+              setPrice(null);
               setFrequency(null);
-              setReason(null);
+              setReason([]);
               setSatisfaction(null);
             }}
           />
@@ -64,8 +68,9 @@ function App() {
         return <Step7_Action subName={subName} onReset={() => {
           setStep(0);
           setSubName('');
+          setPrice(null);
           setFrequency(null);
-          setReason(null);
+          setReason([]);
           setSatisfaction(null);
         }} />;
       default:

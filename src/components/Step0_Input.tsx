@@ -6,11 +6,12 @@ import './Step0_Input.css';
 interface Step0Props {
     subName: string;
     setSubName: (name: string) => void;
+    price: number | null;
+    setPrice: (price: number | null) => void;
     onNext: () => void;
 }
 
-const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, onNext }) => {
-    const [priceInfo, setPriceInfo] = useState<{ amount: number | null }>({ amount: null });
+const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, price, setPrice, onNext }) => {
     const [isSearching, setIsSearching] = useState(false);
 
     const handleSearch = () => {
@@ -18,8 +19,8 @@ const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, onNext }) => {
         setIsSearching(true);
         // モックの検索処理
         setTimeout(() => {
-            // 実際はここでAPI連携
-            setPriceInfo({ amount: 1500 }); // モックで1500円
+            // 実際はここでAPI連携するが、今回はモックとして1500円をデフォルトセット
+            setPrice(1500);
             setIsSearching(false);
         }, 1500);
     };
@@ -36,7 +37,7 @@ const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, onNext }) => {
                 私がその価値を徹底的に審議し、ドブに捨てているお金を浮き彫りにします。
             </p>
 
-            {!priceInfo.amount ? (
+            {!price ? (
                 <div className="input-group">
                     <input
                         type="text"
@@ -58,17 +59,28 @@ const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, onNext }) => {
                 <div className="confirmation-card animate-fade-in">
                     <div className="price-alert">
                         <span className="alert-text">【最新情報確認: 2026年版】</span>
-                        <h3 className="detected-price">月額 {priceInfo.amount.toLocaleString()}円</h3>
+                        <div className="flex items-center justify-center mt-2">
+                            <span className="text-xl mr-2">月額</span>
+                            <input
+                                type="number"
+                                className="guardian-input text-center text-2xl font-bold w-32 bg-gray-800 border-b-2 border-red-500 focus:outline-none"
+                                value={price || ''}
+                                onChange={(e) => setPrice(Number(e.target.value))}
+                                min="0"
+                                step="100"
+                            />
+                            <span className="text-xl ml-2">円</span>
+                        </div>
                     </div>
-                    <p className="confirm-text">
-                        最新の <strong>{subName}</strong> プランでは月額 {priceInfo.amount.toLocaleString()} 円ですが、こちらで合っていますか？
+                    <p className="confirm-text mt-4">
+                        <strong>{subName}</strong> の料金はおおよそ上記の金額ですが、実際のあなたの支払い額に合わせて修正してください。
                     </p>
 
-                    <div className="btn-group">
-                        <Button onClick={() => setPriceInfo({ amount: null })} variant="secondary">
+                    <div className="btn-group mt-6">
+                        <Button onClick={() => setPrice(null)} variant="secondary">
                             やり直す
                         </Button>
-                        <Button onClick={onNext} variant="danger">
+                        <Button onClick={onNext} variant="danger" disabled={!price || price <= 0}>
                             はい、審議へ進む
                         </Button>
                     </div>
