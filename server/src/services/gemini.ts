@@ -104,12 +104,14 @@ export const streamExpertDebate = async (
 ${historyText}
 
 必ず「${expert.tone}」の口調を守り、的確な分析や反論を生成してください。
-さらに、あなた自身の現時点での「解約推奨度スコア（0〜100、100が即解約推奨）」も併せて算出し、必ず以下のテキストフォーマットで出力してください。
+さらに、あなた自身の現時点での「解約推奨度スコア（0〜100、100が即解約推奨）」を算出してください。
 
-# Output format
-Score: 85
-Content: ここに発言の内容（200文字程度）を記述
-※マークダウンやJSONは使わず、純粋なテキストのみを出力してください。
+【超重要：出力フォーマット】
+必ず1行目にスコアの「数値のみ」を出力し、改行して2行目から発言の本文を開始してください。装飾やマークダウン、Score: などの文字は一切書かないでください。
+
+例:
+85
+このサブスクは惰性で続けているだけです。今すぐ解約すべきですね。
 `;
 
     try {
@@ -120,7 +122,6 @@ Content: ここに発言の内容（200文字程度）を記述
 
         let fullText = "";
         let reportedScore = false;
-        let contentStarted = false;
 
         for await (const chunk of responseStream) {
             const chunkText = chunk.text;
@@ -128,41 +129,43 @@ Content: ここに発言の内容（200文字程度）を記述
                 fullText += chunkText;
 
                 // スコア抽出
-                if (!reportedScore && onScoreMatch) {
-                    const scoreMatch = fullText.match(/Score:\s*(\d+)/i);
-                    if (scoreMatch && scoreMatch[1]) {
-                        onScoreMatch(parseInt(scoreMatch[1], 10));
+                if (!reportedScore) {
+                    const scoreMatch = fullText.match(/^\s*(\d{1,3})\s*\n/);
+                    if (scoreMatch) {
+                        if (onScoreMatch) onScoreMatch(parseInt(scoreMatch[1], 10));
                         reportedScore = true;
-                    }
-                }
 
-                // Content抽出＆送信
-                const contentIndex = fullText.search(/Content:\s*/i);
-                if (contentIndex !== -1) {
-                    if (!contentStarted) {
-                        contentStarted = true;
-                        const firstContent = fullText.substring(contentIndex).replace(/Content:\s*/i, '');
-                        if (firstContent.length > 0) {
-                            onChunk(firstContent);
+                        // 初回送信
+                        const textPart = fullText.substring(scoreMatch[0].length);
+                        if (textPart.length > 0) {
+                            onChunk(textPart);
                         }
-                    } else {
-                        const chunkContentIndex = chunkText.search(/Content:\s*/i);
-                        if (chunkContentIndex !== -1) {
-                            onChunk(chunkText.substring(chunkContentIndex).replace(/Content:\s*/i, ''));
-                        } else {
-                            onChunk(chunkText);
-                        }
+                    } else if (fullText.length > 20 && !fullText.includes('\n')) {
+                        // AIが「改行せずにスコアを書いた」等のフェイルセーフ（20文字見ても改行がない場合は諦める）
+                        if (onScoreMatch) onScoreMatch(50);
+                        reportedScore = true;
+                        onChunk(fullText);
                     }
+                } else {
+                    // スコア特定後は残りのチャンクをそのままフロントへ投げ続ける
+                    onChunk(chunkText);
                 }
             }
         }
 
         // 最終的なテキストを返す
-        const finalMatch = fullText.match(/Content:\s*([^]*)/i);
-        const finalScoreMatch = fullText.match(/Score:\s*(\d+)/i);
+        const scoreMatch = fullText.match(/^\s*(\d{1,3})\s*\n/);
+        let finalScore = 50;
+        let finalContent = fullText.trim();
+
+        if (scoreMatch) {
+            finalScore = parseInt(scoreMatch[1], 10);
+            finalContent = fullText.substring(scoreMatch[0].length).trim();
+        }
+
         return {
-            content: finalMatch ? finalMatch[1].trim() : fullText.trim(),
-            score: finalScoreMatch ? parseInt(finalScoreMatch[1], 10) : 50
+            content: finalContent,
+            score: finalScore
         };
 
     } catch (error) {
