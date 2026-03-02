@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { generateExpertSelection, ExpertData } from '../services/gemini';
+import { generateExpertSelection, streamExpertDebate, ExpertData } from '../services/gemini';
 
 const router = Router();
 
@@ -71,62 +71,82 @@ router.post('/initiate', async (req: Request, res: Response) => {
 
 // GET /api/v1/deliberation/stream
 // SSEを用いて各専門家の議論推論をリアルタイムに送信する
-router.get('/stream', (req: Request, res: Response) => {
+router.get('/stream', async (req: Request, res: Response) => {
     const sessionId = req.query.session_id as string;
 
     if (!sessionId || !sessions.has(sessionId)) {
         return res.status(404).json({ error: 'Session not found' });
     }
 
-    // SSEヘッダーの設定
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
     const session = sessions.get(sessionId);
-
-    // クライアント接続開始を通知
     res.write(`data: ${JSON.stringify({ type: 'connected', message: 'SSE connection established' })}\n\n`);
 
-    // --- ここからモックのリアルタイムチャンク送信シミュレート ---
-    let tick = 0;
-    const interval = setInterval(() => {
-        tick++;
+    const conversationHistory: string[] = [];
+    let isClientClosed = false;
 
-        // ランダムな専門家発言のチャンク送信
-        const expertIndex = tick % session.experts.length;
-        const expert = session.experts[expertIndex];
+    req.on('close', () => {
+        isClientClosed = true;
+        console.log(`SSE connection closed for session: ${sessionId}`);
+    });
 
-        res.write(`data: ${JSON.stringify({
-            type: 'agent_chunk',
-            role: expert.role,
-            chunk_text: `[${tick}番目の発言チャンク] ${expert.name}が推論中... `
-        })}\n\n`);
+    try {
+        // 各専門家（エージェント）ごとにターン制でディベートを進行する
+        for (const expert of session.experts as ExpertData[]) {
+            if (isClientClosed) break;
 
-        // 約10回のストリーミング送信でモックを打ち切る
-        if (tick >= 10) {
-            clearInterval(interval);
+            let expertFullText = "";
 
-            // 最終審議結果の送信
+            // Geminiストリーミングを呼び出し、チャンクが届くたびにSSEで送出
+            const debateResult = await streamExpertDebate(
+                session.target,
+                expert,
+                conversationHistory,
+                (chunkText: string) => {
+                    if (isClientClosed) return;
+                    res.write(`data: ${JSON.stringify({
+                        type: 'agent_chunk',
+                        role: expert.role,
+                        chunk_text: chunkText
+                    })}\n\n`);
+                }
+            );
+
+            expertFullText = debateResult;
+
+            // 次のエージェントへ渡すため、発言内容を履歴に保存
+            conversationHistory.push(`【${expert.role}（${expert.name}）の意見】\n${expertFullText}`);
+
+            // 擬似的な思考時間（ターン間のインターバル）
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        if (!isClientClosed) {
+            // Orchestratorが履歴全てを見て、最終的な解約推奨度を出す（現在は固定モックだが、将来動的化可能）
             res.write(`data: ${JSON.stringify({
                 type: 'final_verdict',
                 final_verdict: 'REJECT',
                 score: 85,
                 visualization: {
-                    jerky_count: 1.5,
-                    gacha_pulls: 6
+                    jerky_count: 5.5,
+                    gacha_pulls: 12
                 }
             })}\n\n`);
 
-            res.end(); // 接続終了
+            res.end();
+            sessions.delete(sessionId); // セッション終了
         }
-    }, 1500); // 1.5秒ごとにチャンクを流す
 
-    // クライアントからの切断を検知
-    req.on('close', () => {
-        clearInterval(interval);
-        console.log(`SSE connection closed for session: ${sessionId}`);
-    });
+    } catch (error) {
+        console.error('Deliberation streaming error:', error);
+        if (!isClientClosed) {
+            res.write(`data: ${JSON.stringify({ type: 'error', message: '議論中にエラーが発生しました。' })}\n\n`);
+            res.end();
+        }
+    }
 });
 
 export default router;

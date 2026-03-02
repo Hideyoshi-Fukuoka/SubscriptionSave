@@ -16,6 +16,7 @@ interface ActiveExpert extends ExpertSelection {
     avatar: string; // クライアント側でアイコン(絵文字等)を補完する
     currentChunkText: string;
     isFinished: boolean;
+    isActive: boolean; // 現在のターンかどうか
 }
 
 export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
@@ -51,11 +52,12 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                 setSessionId(sessionData.session_id);
 
                 // 初期状態のエキスパートリストをフロント用に拡張してセット
-                const initialExperts = sessionData.expert_selection.map(ex => ({
+                const initialExperts = sessionData.expert_selection.map((ex: ExpertSelection) => ({
                     ...ex,
                     avatar: getAvatarForRole(ex.role),
                     currentChunkText: '',
-                    isFinished: false
+                    isFinished: false,
+                    isActive: false
                 }));
                 setExperts(initialExperts);
                 setLoadingMsg('');
@@ -79,15 +81,33 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
             if (data.type === 'connected') {
                 console.log('SSE Connected');
             } else if (data.type === 'agent_chunk') {
-                // チャンクが届いたら該当する専門家のテキストを更新
-                setExperts(prev => prev.map(ex => {
-                    if (ex.role === data.role) {
-                        return { ...ex, currentChunkText: ex.currentChunkText + data.chunk_text };
+                // チャンクが届き始めた専門家は「自分のターンが来た」とみなす
+                setExperts(prev => {
+                    let updated = false;
+                    const nextExperts = prev.map(ex => {
+                        if (ex.role === data.role) {
+                            updated = true;
+                            // isActiveフラグ（独自のUI表示用）をtrueにする
+                            return { ...ex, currentChunkText: ex.currentChunkText + data.chunk_text, isActive: true };
+                        }
+                        // 前の人がisActiveになっていれば、その人のisFinishedをtrueに（大雑把なターン判定）
+                        if (updated && ex.isActive && !ex.isFinished) {
+                            // 厳密には前の人を完了としてマークする処理を入れることも可能だが
+                            // 今回はシンプルにchunk_textが追加されていくかで判定
+                        }
+                        return ex;
+                    });
+
+                    // 自分自身の前の専門家は「議論終了」とマークする処理
+                    let currentActiveIndex = nextExperts.findIndex(e => e.role === data.role);
+                    if (currentActiveIndex > 0) {
+                        nextExperts[currentActiveIndex - 1].isFinished = true;
                     }
-                    return ex;
-                }));
+
+                    return nextExperts;
+                });
             } else if (data.type === 'final_verdict') {
-                // 議論終了通知
+                // 全員の議論終了通知
                 setExperts(prev => prev.map(ex => ({ ...ex, isFinished: true })));
                 setDebateFinished(true);
                 sse.close();
@@ -139,25 +159,39 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                             </div>
                         ) : (
                             <div className="comments-container animate-fade-in mt-6">
-                                {experts.map((ex, idx) => (
-                                    <div key={idx} className={`expert-card tone-${ex.tone === '冷徹' ? 'logical' : 'emotional'}`}>
-                                        <div className="expert-header">
-                                            <span className="expert-avatar">{ex.avatar}</span>
-                                            <div className="expert-info">
-                                                <span className="expert-role">{ex.role}</span>
-                                                <span className="expert-name">{ex.name}</span>
+                                {experts.map((ex, idx) => {
+                                    // 自分のターンが来ていない（チャンクがない）専門家はまだ見せないか薄く表示
+                                    const isWaiting = !ex.currentChunkText && !ex.isActive;
+                                    const isCurrentlyTalking = ex.isActive && !ex.isFinished;
+
+                                    if (isWaiting && !showDebate) return null; // 開始前は隠す
+
+                                    return (
+                                        <div key={idx} className={`expert-card tone-${ex.tone === '冷徹' ? 'logical' : 'emotional'} ${isWaiting ? 'opacity-30' : ''} ${isCurrentlyTalking ? 'border-l-4 border-blue-400' : ''}`}>
+                                            <div className="expert-header">
+                                                <span className="expert-avatar">{ex.avatar}</span>
+                                                <div className="expert-info">
+                                                    <span className="expert-role">{ex.role}</span>
+                                                    <span className="expert-name">{ex.name}</span>
+                                                </div>
+                                                {/* 推論中または待機中インジケーター */}
+                                                {isWaiting ? (
+                                                    <span className="ml-auto text-xs opacity-50">待機中...</span>
+                                                ) : isCurrentlyTalking ? (
+                                                    <span className="ml-auto text-xs opacity-50 text-blue-300 animate-pulse">発言中...</span>
+                                                ) : (
+                                                    <span className="ml-auto text-xs opacity-30 text-green-400 mt-1">✓ 発言完了</span>
+                                                )}
                                             </div>
-                                            {/* 推論中インジケーター */}
-                                            {!ex.isFinished && showDebate && (
-                                                <span className="ml-auto text-xs opacity-50 animate-pulse">推論中...</span>
-                                            )}
+                                            <div className="expert-comment" style={{ whiteSpace: 'pre-wrap' }}>
+                                                {/* SSEによるリアルタイムテキストと、点滅するカーソル */}
+                                                <p>{ex.currentChunkText || (isWaiting ? "順番を待っています..." : "")}
+                                                    {isCurrentlyTalking && <span className="animate-pulse">|</span>}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="expert-comment" style={{ whiteSpace: 'pre-wrap' }}>
-                                            {/* SSEによるリアルタイムテキストと、点滅するカーソル */}
-                                            <p>{ex.currentChunkText || "..."}{!ex.isFinished && <span className="animate-pulse">|</span>}</p>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                                 {debateFinished && (
                                     <div className="next-action-box animate-fade-in" style={{ animationDelay: '0.5s' }}>
                                         <p>専門家たちの推論と議論が完了しました。次はあなたの「今の利用状況」を教えてください。</p>

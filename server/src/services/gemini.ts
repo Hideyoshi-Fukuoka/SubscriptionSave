@@ -77,3 +77,53 @@ export const generateExpertSelection = async (
         throw error;
     }
 };
+
+export const streamExpertDebate = async (
+    sub_name: string,
+    expert: ExpertData,
+    conversationHistory: string[],
+    onChunk: (text: string) => void
+) => {
+    // これまでの議論の文脈を組み立てる
+    const historyText = conversationHistory.length > 0
+        ? `【これまでの議論】\n${conversationHistory.join('\n\n')}\n\n上記を踏まえ、あなたの意見と、必要であれば前の意見への反論を述べてください。`
+        : `あなたは最初の発言者です。対象のサービスについて客観的・分析的に問題提起を行ってください。`;
+
+    const prompt = `
+# Role
+あなたは「${expert.name}（${expert.role}）」です。
+- 評価軸: ${expert.perspective}
+- 口調の特徴: ${expert.tone}
+- 思考の核: ${expert.logic_prompt}
+
+# Target
+対象サブスクリプション: ${sub_name}
+
+# Instruction
+${historyText}
+
+必ず「${expert.tone}」の口調を守り、長すぎない（200文字程度）的確な回答を生成してください。
+マークダウンは使用せず、プレーンなテキストで話してください。
+`;
+
+    try {
+        const responseStream = await ai.models.generateContentStream({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        let fullText = "";
+        for await (const chunk of responseStream) {
+            const chunkText = chunk.text;
+            if (chunkText) {
+                fullText += chunkText;
+                onChunk(chunkText); // SSEですぐにフロントへ送るためのコールバック
+            }
+        }
+        return fullText;
+
+    } catch (error) {
+        console.error(`Gemini Stream Error (${expert.name}):`, error);
+        throw error;
+    }
+};
