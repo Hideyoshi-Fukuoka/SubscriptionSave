@@ -44,7 +44,8 @@ export const initiateDeliberation = async (
         });
 
         if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
+            const errData = await response.json().catch(() => null);
+            throw new Error(errData?.error || `API error: ${response.status}`);
         }
 
         return await response.json() as DeliberationSession;
@@ -94,7 +95,8 @@ export const fetchSubscriptionPrice = async (subName: string): Promise<number | 
         const response = await fetch(`${API_BASE_URL}/deliberation/price?name=${encodeURIComponent(subName)}`);
 
         if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
+            const errData = await response.json().catch(() => null);
+            throw new Error(errData?.error || `API error: ${response.status}`);
         }
 
         const data = await response.json();

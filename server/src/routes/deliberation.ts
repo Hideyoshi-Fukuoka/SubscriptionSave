@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { generateExpertSelection, streamExpertDebate, fetchSubscriptionPrice, ExpertData } from '../services/gemini';
 import { getCache, setCache } from '../services/cache';
+import { checkBudgetAndThrow } from '../services/billing';
 
 const router = Router();
 
@@ -11,6 +12,7 @@ const sessions = new Map<string, any>();
 // ユーザーの入力をもとにOrchestratorが3名の専門家を選出し、セッションを確立する
 router.post('/initiate', async (req: Request, res: Response) => {
     try {
+        await checkBudgetAndThrow();
         const { subscription_id, name, category, price, user_context } = req.body;
 
         // まずSupabaseキャッシュをチェックする
@@ -109,9 +111,9 @@ router.post('/initiate', async (req: Request, res: Response) => {
             expert_selection: selectedExperts
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Initiate Error:', error);
-        return res.status(500).json({ error: 'Failed to initiate deliberation' });
+        return res.status(error.status || 500).json({ error: error.message || 'Failed to initiate deliberation' });
     }
 });
 
@@ -119,6 +121,7 @@ router.post('/initiate', async (req: Request, res: Response) => {
 // Google Search Groundingを利用して、指定されたサブスクリプションの最新料金を取得する
 router.get('/price', async (req: Request, res: Response) => {
     try {
+        await checkBudgetAndThrow();
         const name = req.query.name as string;
         if (!name) {
             return res.status(400).json({ error: 'Subscription name is required' });
@@ -140,15 +143,21 @@ router.get('/price', async (req: Request, res: Response) => {
         }
 
         return res.status(200).json({ price });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Fetch Price Error:', error);
-        return res.status(500).json({ error: 'Failed to fetch subscription price' });
+        return res.status(error.status || 500).json({ error: error.message || 'Failed to fetch subscription price' });
     }
 });
 
 // GET /api/v1/deliberation/stream
 // SSEを用いて各専門家の議論推論をリアルタイムに送信する
 router.get('/stream', async (req: Request, res: Response) => {
+    try {
+        await checkBudgetAndThrow();
+    } catch (error: any) {
+        return res.status(error.status || 500).json({ error: error.message || 'Budget exceeded' });
+    }
+
     const sessionId = req.query.session_id as string;
 
     if (!sessionId || !sessions.has(sessionId)) {

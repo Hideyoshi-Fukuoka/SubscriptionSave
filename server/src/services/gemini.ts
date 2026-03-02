@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
+import { recordUsage } from './billing';
 dotenv.config();
 
 // 環境変数 GEMINI_API_KEY が存在することを前提とします。
@@ -69,6 +70,10 @@ export const generateExpertSelection = async (
 
         const resultText = response.text;
         if (!resultText) throw new Error("No response from Gemini API");
+
+        // 日本語を含むAPI利用のため、簡易的に「(入力+出力文字数)/2」をトークン数として算出して記録する
+        const estimatedTokens = Math.ceil((prompt.length + resultText.length) / 2);
+        recordUsage(estimatedTokens).catch(e => console.error(e));
 
         const parsed = JSON.parse(resultText);
         return parsed.expert_selection;
@@ -165,6 +170,10 @@ ${historyText}
             finalContent = fullText.substring(scoreMatch[0].length).trim();
         }
 
+        // ストリーミング終了時に総トークンを概算して記録する
+        const estimatedTokens = Math.ceil((prompt.length + fullText.length) / 2);
+        recordUsage(estimatedTokens).catch(e => console.error(e));
+
         return {
             content: finalContent,
             score: finalScore
@@ -200,6 +209,10 @@ export const fetchSubscriptionPrice = async (sub_name: string): Promise<number |
 
         const resultText = response.text?.trim();
         if (!resultText) return null;
+
+        // Grounding検索を含むため若干トークン増だが、ベースとして文字数から概算記録
+        const estimatedTokens = Math.ceil((prompt.length + resultText.length) / 2);
+        recordUsage(estimatedTokens).catch(e => console.error(e));
 
         // 文字列から「連続する数値（カンマ含む）」を抽出する
         // 例: "約1,490円" や "Netflixは1,500円です" から "1,490", "1,500" を取り出す

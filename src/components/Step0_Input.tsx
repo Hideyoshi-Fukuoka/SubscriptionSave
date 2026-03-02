@@ -24,8 +24,11 @@ const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, price, setPric
             // バックエンドAPI経由でGoogle検索を利用し、最新料金を取得
             const fetchedPrice = await fetchSubscriptionPrice(subName);
             setPrice(fetchedPrice || 1500); // 取得失敗時はフォールバックとして1500をセット
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error fetching price", error);
+            if (error.message && error.message.includes('予算')) {
+                alert(error.message);
+            }
             setPrice(1500); // エラー時も入力画面には進ませる
         } finally {
             setIsSearching(false);

@@ -67,9 +67,15 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                 setExperts(initialExperts);
                 setLoadingMsg('');
 
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Initiation Failed", err);
-                if (isMounted) setLoadingMsg('専門家の召喚に失敗しました。再試行してください。');
+                if (isMounted) {
+                    if (err.message && err.message.includes('予算')) {
+                        setLoadingMsg(`【システムエラー】:\n${err.message}`);
+                    } else {
+                        setLoadingMsg('専門家の召喚に失敗しました。再試行してください。');
+                    }
+                }
             }
         };
 
