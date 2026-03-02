@@ -83,3 +83,22 @@ export const subscribeToDeliberationStream = (
 
     return eventSource;
 };
+
+/**
+ * 外部検索を利用して対象サブスクリプションの最新料金（日本国内）を取得する
+ */
+export const fetchSubscriptionPrice = async (subName: string): Promise<number | null> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/deliberation/price?name=${encodeURIComponent(subName)}`);
+
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.price;
+    } catch (error) {
+        console.error('Failed to fetch subscription price:', error);
+        return null; // エラー時はnullを返し、フロントのデフォルトフローにフォールバックさせる
+    }
+};

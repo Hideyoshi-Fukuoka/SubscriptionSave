@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from './Button';
 import { Search, ShieldAlert } from 'lucide-react';
+import { fetchSubscriptionPrice } from '../utils/api';
 import './Step0_Input.css';
 
 interface Step0Props {
@@ -14,15 +15,20 @@ interface Step0Props {
 const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, price, setPrice, onNext }) => {
     const [isSearching, setIsSearching] = useState(false);
 
-    const handleSearch = () => {
+    const handleSearch = async () => {
         if (!subName.trim()) return;
         setIsSearching(true);
-        // モックの検索処理
-        setTimeout(() => {
-            // 実際はここでAPI連携するが、今回はモックとして1500円をデフォルトセット
-            setPrice(1500);
+
+        try {
+            // バックエンドAPI経由でGoogle検索を利用し、最新料金を取得
+            const fetchedPrice = await fetchSubscriptionPrice(subName);
+            setPrice(fetchedPrice || 1500); // 取得失敗時はフォールバックとして1500をセット
+        } catch (error) {
+            console.error("Error fetching price", error);
+            setPrice(1500); // エラー時も入力画面には進ませる
+        } finally {
             setIsSearching(false);
-        }, 1500);
+        }
     };
 
     return (

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { generateExpertSelection, streamExpertDebate, ExpertData } from '../services/gemini';
+import { generateExpertSelection, streamExpertDebate, fetchSubscriptionPrice, ExpertData } from '../services/gemini';
 
 const router = Router();
 
@@ -66,6 +66,24 @@ router.post('/initiate', async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Initiate Error:', error);
         return res.status(500).json({ error: 'Failed to initiate deliberation' });
+    }
+});
+
+// GET /api/v1/deliberation/price
+// Google Search Groundingを利用して、指定されたサブスクリプションの最新料金を取得する
+router.get('/price', async (req: Request, res: Response) => {
+    try {
+        const name = req.query.name as string;
+        if (!name) {
+            return res.status(400).json({ error: 'Subscription name is required' });
+        }
+
+        const price = await fetchSubscriptionPrice(name);
+
+        return res.status(200).json({ price });
+    } catch (error) {
+        console.error('Fetch Price Error:', error);
+        return res.status(500).json({ error: 'Failed to fetch subscription price' });
     }
 });
 

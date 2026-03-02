@@ -127,3 +127,37 @@ ${historyText}
         throw error;
     }
 };
+
+export const fetchSubscriptionPrice = async (sub_name: string): Promise<number | null> => {
+    const prompt = `
+# Task
+あなたは優秀なリサーチャーです。対象のサブスクリプションサービスの【日本国内における最新の標準的な月額料金（円）】を、ウェブ検索を用いて特定してください。
+
+# Target
+対象サブスクリプション: ${sub_name}
+
+# Output format
+出力は絶対に「数値（整数）のみ」としてください。カンマ、円、説明文などの装飾は一切不要です。（例: 1500）
+もし無料サービスであったり、月額サービスでない等で特定が困難な場合は、「0」を出力してください。
+`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                tools: [{ googleSearch: {} }], // Google Search Groundingを有効化
+            }
+        });
+
+        const resultText = response.text?.trim();
+        if (!resultText) return null;
+
+        const price = parseInt(resultText, 10);
+        return isNaN(price) ? null : price;
+
+    } catch (error) {
+        console.error('Gemini Price Fetch Error:', error);
+        return null; // エラー時は処理を止めずnullを返し、フロントのフォールバックに任せる
+    }
+};

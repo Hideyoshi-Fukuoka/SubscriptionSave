@@ -91,7 +91,12 @@ function App() {
         {renderStep()}
       </main>
 
-      <footer className="app-footer">
+      <footer className="app-footer text-center p-4">
+        <p className="text-xs text-gray-500 mb-2">
+          ※免責事項: 当アプリが提供する金額試算や判定結果は参考情報であり、正確性を保証するものではありません。<br />
+          当アプリを利用して発生したいかなる損害・損失等について、開発者は一切の責任を負いません。<br />
+          最終的な解約判断は、必ずご自身の責任で行ってください。
+        </p>
         <p>© 2026 Subscription Guardian System</p>
       </footer>
     </div>
