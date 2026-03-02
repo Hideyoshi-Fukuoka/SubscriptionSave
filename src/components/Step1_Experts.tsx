@@ -125,6 +125,12 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                 setMessages(prev => prev.map(m => ({ ...m, isFinished: true })));
                 setDebateFinished(true);
                 sse.close();
+            } else if (data.type === 'error') {
+                console.error('SSE Error:', data.message);
+                // エラー時もフリーズを避けるため終了状態にする
+                setMessages(prev => prev.map(m => ({ ...m, isFinished: true })));
+                setDebateFinished(true);
+                sse.close();
             }
         });
 
@@ -187,8 +193,8 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                                                     {ex.role} - {ex.name}
                                                     {msg.score !== undefined && (
                                                         <span className={`ml-3 px-2 py-0.5 rounded text-xs font-bold ${msg.score >= 80 ? 'bg-red-500/20 text-red-400 border border-red-500/50' :
-                                                                msg.score >= 50 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' :
-                                                                    'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                                                            msg.score >= 50 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' :
+                                                                'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                                                             }`}>
                                                             解約推奨度: {msg.score}
                                                         </span>

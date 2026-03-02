@@ -104,77 +104,66 @@ export const streamExpertDebate = async (
 ${historyText}
 
 必ず「${expert.tone}」の口調を守り、的確な分析や反論を生成してください。
-さらに、あなた自身の現時点での「解約推奨度スコア（0〜100、100が即解約推奨）」も併せて算出し、必ず以下のフォーマット（JSON）で出力してください。
+さらに、あなた自身の現時点での「解約推奨度スコア（0〜100、100が即解約推奨）」も併せて算出し、必ず以下のテキストフォーマットで出力してください。
 
 # Output format
-\`\`\`json
-{
-  "score": 85,
-  "content": "ここに発言の内容（200文字程度）を記述"
-}
-\`\`\`
-※JSON以外の余計なテキスト（マークダウンの装飾等を含む）は出力しないでください。純粋なJSON文字列のみを返してください。
+Score: 85
+Content: ここに発言の内容（200文字程度）を記述
+※マークダウンやJSONは使わず、純粋なテキストのみを出力してください。
 `;
 
     try {
         const responseStream = await ai.models.generateContentStream({
             model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json"
-            }
+            contents: prompt
         });
 
-        let fullJsonText = "";
+        let fullText = "";
         let reportedScore = false;
-        let lastExtractedContentLength = 0;
+        let contentStarted = false;
 
         for await (const chunk of responseStream) {
             const chunkText = chunk.text;
             if (chunkText) {
-                fullJsonText += chunkText;
+                fullText += chunkText;
 
-                // 蓄積されたJSON文字列から、無理やり正規表現でcontentの中身を途中まででも抽出し、
-                // 送信済みの長さを引いて差分だけをonChunkで送信する
-                const contentMatch = fullJsonText.match(/"content"\s*:\s*"([^]*?)(?:"\s*\}|}$|$)/);
-                if (contentMatch && contentMatch[1]) {
-                    // Geminiの出力するエスケープ文字（\n等）を復元
-                    const currentContent = contentMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-                    const newContent = currentContent.substring(lastExtractedContentLength);
-                    if (newContent.length > 0) {
-                        onChunk(newContent);
-                        lastExtractedContentLength = currentContent.length;
-                    }
-                }
-
-                // スコアが見つかったらコールバック
+                // スコア抽出
                 if (!reportedScore && onScoreMatch) {
-                    const scoreMatch = fullJsonText.match(/"score"\s*:\s*(\d+)/);
+                    const scoreMatch = fullText.match(/Score:\s*(\d+)/i);
                     if (scoreMatch && scoreMatch[1]) {
                         onScoreMatch(parseInt(scoreMatch[1], 10));
                         reportedScore = true;
                     }
                 }
+
+                // Content抽出＆送信
+                const contentIndex = fullText.search(/Content:\s*/i);
+                if (contentIndex !== -1) {
+                    if (!contentStarted) {
+                        contentStarted = true;
+                        const firstContent = fullText.substring(contentIndex).replace(/Content:\s*/i, '');
+                        if (firstContent.length > 0) {
+                            onChunk(firstContent);
+                        }
+                    } else {
+                        const chunkContentIndex = chunkText.search(/Content:\s*/i);
+                        if (chunkContentIndex !== -1) {
+                            onChunk(chunkText.substring(chunkContentIndex).replace(/Content:\s*/i, ''));
+                        } else {
+                            onChunk(chunkText);
+                        }
+                    }
+                }
             }
         }
 
-        // 最終的なJSONパースを試み、テキスト部分を返す
-        try {
-            const parsed = JSON.parse(fullJsonText);
-            return {
-                content: parsed.content || "",
-                score: parsed.score || 0
-            };
-        } catch (e) {
-            // パース失敗した場合は抽出したcontentを返す
-            console.warn("JSON parse failed for stream result. Returning fallback.");
-            const match = fullJsonText.match(/"content"\s*:\s*"([^]*?)"\s*\}/);
-            const scoreMatch = fullJsonText.match(/"score"\s*:\s*(\d+)/);
-            return {
-                content: match && match[1] ? match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : fullJsonText,
-                score: scoreMatch ? parseInt(scoreMatch[1], 10) : 50
-            };
-        }
+        // 最終的なテキストを返す
+        const finalMatch = fullText.match(/Content:\s*([^]*)/i);
+        const finalScoreMatch = fullText.match(/Score:\s*(\d+)/i);
+        return {
+            content: finalMatch ? finalMatch[1].trim() : fullText.trim(),
+            score: finalScoreMatch ? parseInt(finalScoreMatch[1], 10) : 50
+        };
 
     } catch (error) {
         console.error(`Gemini Stream Error (${expert.name}):`, error);
