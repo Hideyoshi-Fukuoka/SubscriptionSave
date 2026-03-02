@@ -158,7 +158,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                                 </Button>
                             </div>
                         ) : (
-                            <div className="comments-container animate-fade-in mt-6">
+                            <div className="chat-container animate-fade-in mt-6">
                                 {experts.map((ex, idx) => {
                                     // 自分のターンが来ていない（チャンクがない）専門家はまだ見せないか薄く表示
                                     const isWaiting = !ex.currentChunkText && !ex.isActive;
@@ -167,27 +167,19 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                                     if (isWaiting && !showDebate) return null; // 開始前は隠す
 
                                     return (
-                                        <div key={idx} className={`expert-card tone-${ex.tone === '冷徹' ? 'logical' : 'emotional'} ${isWaiting ? 'opacity-30' : ''} ${isCurrentlyTalking ? 'border-l-4 border-blue-400' : ''}`}>
-                                            <div className="expert-header">
-                                                <span className="expert-avatar">{ex.avatar}</span>
-                                                <div className="expert-info">
-                                                    <span className="expert-role">{ex.role}</span>
-                                                    <span className="expert-name">{ex.name}</span>
+                                        <div key={idx} className={`chat-message ${isWaiting ? 'opacity-30' : ''}`}>
+                                            <div className="chat-avatar">{ex.avatar}</div>
+                                            <div className="chat-content">
+                                                <div className="chat-name">
+                                                    {ex.role} - {ex.name}
+                                                    {isCurrentlyTalking && <span className="text-blue-400 ml-2 animate-pulse">入力中...</span>}
                                                 </div>
-                                                {/* 推論中または待機中インジケーター */}
-                                                {isWaiting ? (
-                                                    <span className="ml-auto text-xs opacity-50">待機中...</span>
-                                                ) : isCurrentlyTalking ? (
-                                                    <span className="ml-auto text-xs opacity-50 text-blue-300 animate-pulse">発言中...</span>
-                                                ) : (
-                                                    <span className="ml-auto text-xs opacity-30 text-green-400 mt-1">✓ 発言完了</span>
-                                                )}
-                                            </div>
-                                            <div className="expert-comment" style={{ whiteSpace: 'pre-wrap' }}>
-                                                {/* SSEによるリアルタイムテキストと、点滅するカーソル */}
-                                                <p>{ex.currentChunkText || (isWaiting ? "順番を待っています..." : "")}
-                                                    {isCurrentlyTalking && <span className="animate-pulse">|</span>}
-                                                </p>
+                                                <div className={`chat-bubble tone-${ex.tone === '冷徹' ? 'logical' : ex.tone.includes('オカン') ? 'okan' : ex.tone.includes('高圧的') ? 'ceo' : 'emotional'}`}>
+                                                    <p style={{ whiteSpace: 'pre-wrap' }}>
+                                                        {ex.currentChunkText || (isWaiting ? "..." : "")}
+                                                        {isCurrentlyTalking && <span className="animate-pulse">|</span>}
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
                                     );

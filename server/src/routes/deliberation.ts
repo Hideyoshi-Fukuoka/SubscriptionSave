@@ -45,6 +45,26 @@ router.post('/initiate', async (req: Request, res: Response) => {
             ];
         }
 
+        // 固定枠の専門家（主婦、社長）を追加して計5名で議論させる
+        const fixedExperts: ExpertData[] = [
+            {
+                role: '節約主婦',
+                name: 'オカン',
+                perspective: '家計のやりくりと無駄遣いへの怒り',
+                tone: '関西弁のオカン風',
+                logic_prompt: '1円の無駄も許さない主婦の目線で、日々の生活費と比較しながら厳しく叱責すること'
+            },
+            {
+                role: '経営コンサルタント社長',
+                name: 'CEO・剛田',
+                perspective: '費用対効果(ROI)と時間価値のシビアな評価',
+                tone: 'ビジネスライクで高圧的',
+                logic_prompt: '投資対効果の観点から、そのサブスクが自身の成長や生産性向上に寄与していないなら即カットすべきと断言すること'
+            }
+        ];
+
+        selectedExperts = [...selectedExperts, ...fixedExperts];
+
         const sessionId = `delib_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         const sessionData = {

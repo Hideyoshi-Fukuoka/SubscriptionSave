@@ -91,91 +91,109 @@
     margin-top: 1rem;
 }
 
-.comments-container {
+.chat-container {
     display: flex;
     flex-direction: column;
-    gap: 1.2rem;
-    text-align: left;
+    gap: 1.5rem;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 1.5rem 1rem;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.expert-card {
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 12px;
-    padding: 1.5rem;
-    border-left: 3px solid transparent;
-    opacity: 0;
-    transform: translateY(10px);
+.chat-message {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
     animation: fadeInCode 0.5s forwards;
+    transition: opacity 0.3s ease;
+}
+
+.chat-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    margin-top: 18px;
+    /* 名前の分下げる */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.chat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 85%;
+}
+
+.chat-name {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-left: 4px;
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+}
+
+.chat-bubble {
+    background: rgba(30, 41, 59, 0.9);
+    color: #f8fafc;
+    padding: 12px 18px;
+    border-radius: 18px;
+    border-top-left-radius: 4px;
+    /* しっぽの表現 */
+    position: relative;
+    line-height: 1.6;
+    font-size: 1rem;
+    word-break: break-word;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-bubble p {
+    margin: 0;
+}
+
+/* 専門家のトーンごとの色彩（ダークトーン＋アクセント） */
+.chat-bubble.tone-logical {
+    background: rgba(15, 30, 60, 0.9);
+    border-left: 3px solid #3b82f6;
+    /* Blue */
+}
+
+.chat-bubble.tone-emotional {
+    background: rgba(40, 20, 50, 0.9);
+    border-left: 3px solid #a855f7;
+    /* Purple */
+}
+
+.chat-bubble.tone-okan {
+    background: rgba(50, 30, 20, 0.9);
+    border-left: 3px solid #f97316;
+    /* Orange */
+}
+
+.chat-bubble.tone-ceo {
+    background: rgba(20, 40, 30, 0.9);
+    border-left: 3px solid #10b981;
+    /* Emerald */
 }
 
 @keyframes fadeInCode {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
     to {
         opacity: 1;
         transform: translateY(0);
     }
-}
-
-.expert-card.tone-harsh {
-    border-left-color: #1e88e5;
-}
-
-/* Red */
-.expert-card.tone-logical {
-    border-left-color: #2196f3;
-}
-
-/* Blue */
-.expert-card.tone-emotional {
-    border-left-color: #9c27b0;
-}
-
-/* Purple */
-
-.expert-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 0.8rem;
-}
-
-.expert-avatar {
-    font-size: 2rem;
-    background: rgba(255, 255, 255, 0.05);
-    width: 50px;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-}
-
-.expert-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.expert-role {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    font-weight: 700;
-}
-
-.expert-name {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: #fff;
-}
-
-.expert-comment {
-    font-size: 1.1rem;
-    line-height: 1.6;
-    font-weight: 600;
-    padding-left: calc(50px + 1rem);
-}
-
-.expert-card.tone-emotional .expert-comment {
-    font-style: italic;
-    color: #d8b4e2;
 }
 
 .next-action-box {
@@ -190,9 +208,15 @@
 
 /* モバイル対応 */
 @media (max-width: 600px) {
-    .expert-comment {
-        padding-left: 0;
-        margin-top: 1rem;
+    .chat-bubble {
+        padding: 10px 14px;
+        font-size: 0.95rem;
+    }
+
+    .chat-avatar {
+        width: 38px;
+        height: 38px;
+        font-size: 1.2rem;
     }
 }
 
