@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { generateExpertSelection, streamExpertDebate, fetchSubscriptionPrice, ExpertData } from '../services/gemini';
+import { generateExpertSelection, streamExpertDebate, fetchSubscriptionPrice, fetchSubscriptionFutureValue, ExpertData, FutureValueAnalysis } from '../services/gemini';
 import { getCache, setCache } from '../services/cache';
 import { checkBudgetAndThrow } from '../services/billing';
 
@@ -100,10 +100,31 @@ router.post('/initiate', async (req: Request, res: Response) => {
             category,
             price,
             experts: selectedExperts,
+            futureAnalysis: cache?.future_analysis || null,
             status: 'initialized'
         };
 
         sessions.set(sessionId, sessionData);
+
+        // キャッシュに future_analysis がない場合（初登場サブスクや有効期限切れ時など）
+        // ユーザーを待たせずに、バックグラウンドで動的検索とスコア算出を実行する
+        if (!cache?.future_analysis && process.env.GEMINI_API_KEY) {
+            console.log(`[Background] Starting future value analysis for ${name}...`);
+            fetchSubscriptionFutureValue(name).then(analysis => {
+                if (analysis) {
+                    console.log(`[Background] Completed future value analysis for ${name}. Score: ${analysis.future_score}`);
+                    // メモリ上のセッションデータを更新
+                    const currentSession = sessions.get(sessionId);
+                    if (currentSession) {
+                        currentSession.futureAnalysis = analysis;
+                    }
+                    // キャッシュ(DB)にも永続保存 (price自体は今のスコープに無いため元のcache.price等を利用)
+                    setCache(name, cache?.price || price || null, analysis, selectedExperts).catch(e => console.error("Cache Future Save Error:", e));
+                }
+            }).catch(err => {
+                console.error(`[Background] Future value analysis failed for ${name}:`, err);
+            });
+        }
 
         return res.status(200).json({
             session_id: sessionId,
@@ -209,6 +230,7 @@ router.get('/stream', async (req: Request, res: Response) => {
                 const debateResult = await streamExpertDebate(
                     session.target,
                     session.price || null,
+                    session.futureAnalysis || null,
                     expert,
                     conversationHistory,
                     (chunkText: string) => {
@@ -246,6 +268,7 @@ router.get('/stream', async (req: Request, res: Response) => {
                 type: 'final_verdict',
                 final_verdict: 'REJECT',
                 score: 85,
+                futureAnalysis: session.futureAnalysis || null,
                 visualization: {
                     jerky_count: 5.5,
                     gacha_pulls: 12

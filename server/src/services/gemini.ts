@@ -86,6 +86,7 @@ export const generateExpertSelection = async (
 export const streamExpertDebate = async (
     sub_name: string,
     price: number | null,
+    future_analysis: FutureValueAnalysis | null,
     expert: ExpertData,
     conversationHistory: string[],
     onChunk: (text: string) => void,
@@ -95,6 +96,13 @@ export const streamExpertDebate = async (
     const historyText = conversationHistory.length > 0
         ? `【これまでの議論】\n${conversationHistory.join('\n\n')}\n\n上記を踏まえ、あなたの意見と、必要であれば前の意見への反論を述べてください。`
         : `あなたは最初の発言者です。対象のサービスについて客観的・分析的に問題提起を行ってください。`;
+
+    const isGamerRetiree = expert.role.includes('引退勢');
+    const gamerRetireeInjection = isGamerRetiree && future_analysis && future_analysis.upcoming_contents.length > 0 ? `
+【特別な指示（SNS感情・センチメント注入）】
+あなたは「重課金引退勢」です。上記の「客観的エビデンス（近日配信予定）」の内容を逆手に取り、ユーザーの期待をへし折り激しく煽ってください。
+「『${future_analysis.upcoming_contents[0]}』が来るから待機？ 目を覚ませよ。俺も昔はそうやって周年や大型アプデの虚無期間に金を払い続けて、結局イベントが来てもインフレ集金カーニバルに絶望したんだ」などと、SNS上の不満や過去の炎上の空気感に近い「経験者の諦め」を滲ませ、今すぐ解約すべきだと強く主張してください。
+` : '';
 
     const prompt = `
 # Role
@@ -106,9 +114,17 @@ export const streamExpertDebate = async (
 # Target
 対象サブスクリプション: ${sub_name}
 ${price !== null ? `現在の月額料金: ${price}円` : ''}
+${future_analysis && future_analysis.upcoming_contents.length > 0 ? `
+【客観的エビデンス（未来価値アナリティクス）】
+・今後3〜6ヶ月の目玉コンテンツ・アップデート予定:
+  ${future_analysis.upcoming_contents.map(c => `- ${c}`).join('\n  ')}
+・未来価値プレイスコア: ${future_analysis.future_score} / 10
+・総評: ${future_analysis.summary}
+` : ''}
 
 # Instruction
 ${historyText}
+${gamerRetireeInjection}
 
 必ず「${expert.tone}」の口調を守り、的確な分析や反論を生成してください。
 さらに、あなた自身の現時点での「解約推奨度スコア（0〜100、100が即解約推奨）」を算出してください。
@@ -235,25 +251,17 @@ export interface FutureValueAnalysis {
 }
 
 /**
- * スクレイピングにより取得したテキスト群を元に、
- * 近日中の注目コンテンツや今後の熱狂度（未来価値）を算出して返す
+ * Google Search Groundingを利用して、
+ * 対象サブスクリプションの近日中の注目コンテンツや今後の熱狂度（未来価値）を算出して返す
  */
-export const analyzeFutureValueContent = async (sub_name: string, scraped_text: string): Promise<FutureValueAnalysis | null> => {
-    // スクレイピングテキストが長すぎる場合は、先頭5000文字程度で打ち切る（トークン節約＆ノイズ削減）
-    const truncatedText = scraped_text.substring(0, 5000);
-
+export const fetchSubscriptionFutureValue = async (sub_name: string): Promise<FutureValueAnalysis | null> => {
     const prompt = `
 # Task
-あなたは情報要約の達人です。提供されたウェブページのテキスト群を読み解き、「${sub_name}」に関する**近日中（むこう3〜6ヶ月以内）の強力な配信予定や目玉コンテンツ**が存在するかを分析してください。
-
-# Input Data
-\`\`\`
-${truncatedText}
-\`\`\`
+あなたは情報収集と要約の達人です。Google検索機能を用いて、「${sub_name}」に関する**近日中（むこう3〜6ヶ月以内）の強力な配信予定や目玉コンテンツ、または大型アップデート情報**を検索し、分析してください。
 
 # Instructions
 1. 対象サブスクの価値を引き上げる強力なコンテンツ（独占配信、大型IP、続編など）やニュースがあれば、最大3つまで簡潔にリストアップしてください。
-2. それらのラインナップから総合的に見て、今後継続すべき「未来価値のスコア」を0（全く価値なし・目玉ゼロ）から10（絶対に解約してはいけないレベルの熱狂）で診断してください。
+2. それらのラインナップから総合的に見て、今後継続すべき「未来価値のプレイスコア」を0（全く価値なし・目玉ゼロ）から10（絶対に解約してはいけないレベルの熱狂）で診断してください。
 3. 全体の簡潔な要約コメントを作成してください。
 `;
 
@@ -262,6 +270,7 @@ ${truncatedText}
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
+                tools: [{ googleSearch: {} }],
                 responseMimeType: 'application/json',
                 responseSchema: {
                     type: Type.OBJECT,
@@ -282,9 +291,13 @@ ${truncatedText}
         const resultText = response.text;
         if (!resultText) return null;
 
+        // Grounding検索を含むためトークン消費を概算して記録
+        const estimatedTokens = Math.ceil((prompt.length + resultText.length) / 2);
+        recordUsage(estimatedTokens).catch(e => console.error(e));
+
         return JSON.parse(resultText) as FutureValueAnalysis;
     } catch (error) {
-        console.error('Gemini Future Analysis Error:', error);
+        console.error('Gemini Future Value Analysis Error:', error);
         return null;
     }
 };

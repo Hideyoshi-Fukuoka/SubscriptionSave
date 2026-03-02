@@ -6,7 +6,7 @@ import './Step1_Experts.css';
 interface Step1Props {
     subName: string;
     price: number | null;
-    onNext: () => void;
+    onNext: (futureAnalysis?: any) => void;
 }
 
 import type { ExpertSelection } from '../utils/api';
@@ -36,6 +36,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
 
     // 全員の議論が終わったか
     const [debateFinished, setDebateFinished] = useState(false);
+    const [futureAnalysisData, setFutureAnalysisData] = useState<any>(null);
 
     // 専門家ごとのアイコンを適当に割り当てるヘルパー
     const getAvatarForRole = (role: string) => {
@@ -71,7 +72,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                 console.error("Initiation Failed", err);
                 if (isMounted) {
                     if (err.message && err.message.includes('予算')) {
-                        setLoadingMsg(`【システムエラー】:\n${err.message}`);
+                        setLoadingMsg(`【システムエラー】: \n${err.message} `);
                     } else {
                         setLoadingMsg('専門家の召喚に失敗しました。再試行してください。');
                     }
@@ -96,7 +97,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                 setMessages(prev => {
                     // 以前のすべてのメッセージを「完了」にする
                     const markedPrev = prev.map(m => ({ ...m, isFinished: true }));
-                    const msgId = `${data.role}_${data.turn}`;
+                    const msgId = `${data.role}_${data.turn} `;
                     return [...markedPrev, { id: msgId, role: data.role, text: '', isFinished: false }];
                 });
             } else if (data.type === 'agent_chunk') {
@@ -132,6 +133,9 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                 // 全員の議論終了通知
                 setMessages(prev => prev.map(m => ({ ...m, isFinished: true })));
                 setDebateFinished(true);
+                if (data.futureAnalysis) {
+                    setFutureAnalysisData(data.futureAnalysis);
+                }
                 sse.close();
             } else if (data.type === 'error') {
                 console.error('SSE Error:', data.message);
@@ -209,16 +213,16 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                                                 <div className="chat-name">
                                                     {ex.role} - {ex.name}
                                                     {msg.score !== undefined && (
-                                                        <span className={`ml-3 px-2 py-0.5 rounded text-xs font-bold ${msg.score >= 80 ? 'bg-red-500/20 text-red-400 border border-red-500/50' :
-                                                            msg.score >= 50 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' :
-                                                                'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
-                                                            }`}>
+                                                        <span className={`ml - 3 px - 2 py - 0.5 rounded text - xs font - bold ${msg.score >= 80 ? 'bg-red-500/20 text-red-400 border border-red-500/50' :
+                                                                msg.score >= 50 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' :
+                                                                    'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                                                            } `}>
                                                             解約推奨度: {msg.score}
                                                         </span>
                                                     )}
                                                     {isCurrentlyTalking && <span className="text-blue-400 ml-2 animate-pulse">判定中...</span>}
                                                 </div>
-                                                <div className={`chat-bubble tone-${ex.tone === '冷徹' ? 'logical' : ex.tone.includes('オカン') ? 'okan' : ex.tone.includes('高圧的') ? 'ceo' : 'emotional'}`}>
+                                                <div className={`chat - bubble tone - ${ex.tone === '冷徹' ? 'logical' : ex.tone.includes('オカン') ? 'okan' : ex.tone.includes('高圧的') ? 'ceo' : 'emotional'} `}>
                                                     <p style={{ whiteSpace: 'pre-wrap' }}>
                                                         {msg.text}
                                                         {isCurrentlyTalking && <span className="animate-pulse">|</span>}
@@ -242,7 +246,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                                 {debateFinished && (
                                     <div className="next-action-box animate-fade-in" style={{ animationDelay: '0.5s' }}>
                                         <p>専門家たちの推論と議論が完了しました。次はあなたの「今の利用状況」を教えてください。</p>
-                                        <Button onClick={onNext} variant="danger" className="mt-4">
+                                        <Button onClick={() => onNext(futureAnalysisData)} variant="danger" className="mt-4">
                                             ヒアリングへ進む
                                         </Button>
                                     </div>

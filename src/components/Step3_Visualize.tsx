@@ -2,18 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { Skull, TrendingDown, Package, Smartphone, Flame, AlertCircle } from 'lucide-react';
 import './Step3_Visualize.css';
-import { fetchRoadmapData } from '../utils/roadmapApi';
-import type { RoadmapData } from '../utils/roadmapApi';
 
 interface Step3Props {
     subName: string;
     frequency: number | null;
+    futureAnalysis?: any;
     onNext: () => void;
 }
 
-export const Step3_Visualize: React.FC<Step3Props> = ({ subName, frequency, onNext }) => {
+export const Step3_Visualize: React.FC<Step3Props> = ({ subName, frequency, futureAnalysis, onNext }) => {
     const [calculating, setCalculating] = useState(true);
-    const [roadmapData, setRoadmapData] = useState<RoadmapData | null>(null);
 
     // モックの月額（本番ではStep0で取得した値を渡すか、グローバルステート管理）
     const monthlyFee = 1500;
@@ -36,14 +34,10 @@ export const Step3_Visualize: React.FC<Step3Props> = ({ subName, frequency, onNe
 
     useEffect(() => {
         let isMounted = true;
-        const prepareData = async () => {
-            const data = await fetchRoadmapData(subName, monthlyFee);
-            if (isMounted) {
-                setRoadmapData(data);
-                setCalculating(false);
-            }
-        };
-        prepareData();
+        // 擬似的な計算時間（アニメーション用）
+        setTimeout(() => {
+            if (isMounted) setCalculating(false);
+        }, 2000);
 
         return () => { isMounted = false; };
     }, [subName]);
@@ -132,36 +126,35 @@ export const Step3_Visualize: React.FC<Step3Props> = ({ subName, frequency, onNe
 
                     {renderWasteVisuals()}
 
-                    {roadmapData && (
+                    {futureAnalysis && (
                         <div className="roadmap-alert-box animate-fade-in" style={{ animationDelay: '0.8s' }}>
                             <div className="roadmap-header">
-                                <AlertCircle size={24} className="text-danger" />
-                                <h3>未来予測エージェント解析結果</h3>
+                                <AlertCircle size={24} className={futureAnalysis.future_score >= 8 ? "text-success" : "text-danger"} />
+                                <h3>未来予測エージェント (Web検索解析)</h3>
                             </div>
-                            <p className="roadmap-verdict">{roadmapData.verdictMessage}</p>
+                            <p className="roadmap-verdict">{futureAnalysis.summary}</p>
 
                             <div className="roadmap-data-grid">
                                 <div className="roadmap-data-item">
-                                    <span className="data-label">V_future (未来継続価値)</span>
-                                    <span className="data-value">{roadmapData.vFuture}</span>
-                                </div>
-                                <div className="roadmap-data-item">
-                                    <span className="data-label">次回までの無駄な維持費</span>
-                                    <span className="data-value text-danger">¥{roadmapData.wastedMaintenanceFee.toLocaleString()}</span>
+                                    <span className="data-label">V_future (未来価値プレイスコア)</span>
+                                    <span className={`data-value ${futureAnalysis.future_score >= 8 ? 'text-success' : 'text-danger'}`}>
+                                        {futureAnalysis.future_score} / 10
+                                    </span>
                                 </div>
                             </div>
 
-                            <div className="roadmap-contents">
-                                <h4>【待機中の主要コンテンツ】</h4>
-                                <ul>
-                                    {roadmapData.contents.map((c, i) => (
-                                        <li key={i}>
-                                            <span className="content-title">{c.title}</span>
-                                            <span className="content-meta">期待度: {c.importance} / 待機: 約{c.waitMonths}ヶ月</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
+                            {futureAnalysis.upcoming_contents && futureAnalysis.upcoming_contents.length > 0 && (
+                                <div className="roadmap-contents">
+                                    <h4>【近日配信予定の目玉コンテンツ・アップデート】</h4>
+                                    <ul>
+                                        {futureAnalysis.upcoming_contents.map((c: string, i: number) => (
+                                            <li key={i}>
+                                                <span className="content-title" style={{ fontWeight: 'normal' }}>{c}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                     )}
 

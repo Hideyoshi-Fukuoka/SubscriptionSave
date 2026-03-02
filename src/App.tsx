@@ -7,10 +7,17 @@ import { Step3_Visualize } from './components/Step3_Visualize';
 import { Step5_Evaluation } from './components/Step5_Evaluation';
 import { Step7_Action } from './components/Step7_Action';
 
+export interface FutureValueAnalysis {
+  upcoming_contents: string[];
+  future_score: number;
+  summary: string;
+}
+
 function App() {
   const [step, setStep] = useState<number>(0);
   const [subName, setSubName] = useState<string>('');
   const [price, setPrice] = useState<number | null>(null);
+  const [futureAnalysis, setFutureAnalysis] = useState<FutureValueAnalysis | null>(null);
 
   // 後続ステップで使う状態群
   const [frequency, setFrequency] = useState<number | null>(null);
@@ -33,7 +40,10 @@ function App() {
           />
         );
       case 1:
-        return <Step1_Experts subName={subName} price={price} onNext={() => setStep(2)} />;
+        return <Step1_Experts subName={subName} price={price} onNext={(fa) => {
+          if (fa) setFutureAnalysis(fa);
+          setStep(2);
+        }} />;
       case 2:
         return (
           <Step2_Hearing
@@ -45,7 +55,7 @@ function App() {
         );
       case 3:
       case 4:
-        return <Step3_Visualize subName={subName} frequency={frequency} onNext={() => setStep(5)} />;
+        return <Step3_Visualize subName={subName} frequency={frequency} futureAnalysis={futureAnalysis} onNext={() => setStep(5)} />;
       case 5:
       case 6:
         return (
