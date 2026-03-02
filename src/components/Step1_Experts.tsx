@@ -43,6 +43,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
         if (role.includes('主婦') || role.includes('ミニマリスト')) return '🌿';
         if (role.includes('ゲーム') || role.includes('スポーツ')) return '🎮';
         if (role.includes('映画') || role.includes('映像')) return '🎬';
+        if (role.includes('ガチ勢') || role.includes('ファン') || role.includes('信者')) return '🔥';
         return '👤';
     };
 
@@ -150,9 +151,9 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, onNext }) => {
                 <Users size={48} />
             </div>
 
-            <h2 className="step-title">5名の専門家による審議</h2>
+            <h2 className="step-title">専門家層による多角的な審議</h2>
             <p className="step-desc text-muted">
-                <strong>{subName}</strong> の継続価値について、各界のプロフェッショナルが意見を交わしています。
+                <strong>{subName}</strong> の継続価値について、推進派・慎重派・解約推奨派の各プロフェッショナルが意見を交わしています。
             </p>
 
             {loadingMsg ? (
