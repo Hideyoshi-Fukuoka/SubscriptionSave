@@ -15,7 +15,9 @@ export interface DeliberationSession {
     expert_selection: ExpertSelection[];
 }
 
-const API_BASE_URL = 'http://localhost:4000/api/v1';
+// 環境変数からAPI URLを取得（Viteの場合は import.meta.env を使用）
+// 本番デプロイ（Vercel連携時など）は VITE_API_URL にRailwayのURLを設定する
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1';
 
 /**
  * 守護神（Orchestrator）へサブスク情報を送信し、専門家を召喚（セッション確立）する
