@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { generateExpertSelection, streamExpertDebate, fetchSubscriptionPrice, ExpertData } from '../services/gemini';
+import { getCache, setCache } from '../services/cache';
 
 const router = Router();
 
@@ -12,37 +13,54 @@ router.post('/initiate', async (req: Request, res: Response) => {
     try {
         const { subscription_id, name, category, price, user_context } = req.body;
 
+        // まずSupabaseキャッシュをチェックする
+        const cache = await getCache(name);
+
         // Orchestratorによる専門家のメタ生成処理 (Gemini APIの実行)
-        // デバイスの環境変数に GEMINI_API_KEY がない場合を考慮し、フェイルセーフを設ける
         let selectedExperts: ExpertData[];
-        if (process.env.GEMINI_API_KEY) {
-            console.log('Generating experts via Gemini API...');
-            selectedExperts = await generateExpertSelection(name, category, user_context);
+
+        if (cache && cache.experts && cache.experts.length > 0) {
+            console.log(`Using cached experts for ${name}`);
+            selectedExperts = cache.experts; // キャッシュから固定枠含め完全復元する想定だが、動的枠だけ復元する構成に変更する
+
+            // キャッシュがある場合でも固定枠は再結合するため、キャッシュには「動的3名」のみを保存する運用とする
+            const dynamicExperts = cache.experts.filter(e => !['節約主婦', '経営コンサルタント社長'].includes(e.role));
+            selectedExperts = dynamicExperts;
         } else {
-            console.warn('GEMINI_API_KEY is not set. Using fallback mock experts.');
-            selectedExperts = [
-                {
-                    role: '重課金引退勢',
-                    name: '影山',
-                    perspective: 'サンクコストへの後悔と時間の喪失',
-                    tone: '丁寧だが情動的',
-                    logic_prompt: '過去の課金額を否定し、電子の海に消える虚しさを説くこと'
-                },
-                {
-                    role: 'サブスク依存アナリスト',
-                    name: '佐藤',
-                    perspective: '複数契約の罠と利用頻度の乖離',
-                    tone: '論理的で冷徹',
-                    logic_prompt: '見たい時に1ヶ月だけ契約するというスポット利用の合理性を説くこと'
-                },
-                {
-                    role: 'ミニマリスト',
-                    name: 'シンプリスト・ケイ',
-                    perspective: '所有しない生き方と執着の放棄',
-                    tone: '悟りを開いたような静けさ',
-                    logic_prompt: '使わないものに対する支払いは執着であると警告すること'
-                }
-            ];
+            // デバイスの環境変数に GEMINI_API_KEY がない場合を考慮し、フェイルセーフを設ける
+            if (process.env.GEMINI_API_KEY) {
+                console.log('Generating experts via Gemini API...');
+                selectedExperts = await generateExpertSelection(name, category, user_context);
+
+                // 動的に生成した3名をキャッシュに非同期で保存しておく (priceやfutureAnalysisは現状不明のためnull)
+                // バックグラウンドで保存
+                setCache(name, null, null, selectedExperts).catch(e => console.error("Cache Save Error:", e));
+            } else {
+                console.warn('GEMINI_API_KEY is not set. Using fallback mock experts.');
+                selectedExperts = [
+                    {
+                        role: '重課金引退勢',
+                        name: '影山',
+                        perspective: 'サンクコストへの後悔と時間の喪失',
+                        tone: '丁寧だが情動的',
+                        logic_prompt: '過去の課金額を否定し、電子の海に消える虚しさを説くこと'
+                    },
+                    {
+                        role: 'サブスク依存アナリスト',
+                        name: '佐藤',
+                        perspective: '複数契約の罠と利用頻度の乖離',
+                        tone: '論理的で冷徹',
+                        logic_prompt: '見たい時に1ヶ月だけ契約するというスポット利用の合理性を説くこと'
+                    },
+                    {
+                        role: 'ミニマリスト',
+                        name: 'シンプリスト・ケイ',
+                        perspective: '所有しない生き方と執着の放棄',
+                        tone: '悟りを開いたような静けさ',
+                        logic_prompt: '使わないものに対する支払いは執着であると警告すること'
+                    }
+                ];
+            }
         }
 
         // 固定枠の専門家（主婦、社長）を追加して計5名で議論させる
@@ -98,7 +116,20 @@ router.get('/price', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Subscription name is required' });
         }
 
+        const cache = await getCache(name);
+        if (cache && cache.price !== null && cache.price !== undefined) {
+            console.log(`Returning cached price for ${name}`);
+            return res.status(200).json({ price: cache.price });
+        }
+
         const price = await fetchSubscriptionPrice(name);
+
+        if (price !== null) {
+            // 他のキャッシュデータ（エキスパート等）を消さずに上書き保存するため、
+            // API呼び出し直前に取得したcacheの状態を引き継ぐ
+            setCache(name, price, cache?.future_analysis || null, cache?.experts || null)
+                .catch(e => console.error("Cache Save Price Error:", e));
+        }
 
         return res.status(200).json({ price });
     } catch (error) {
