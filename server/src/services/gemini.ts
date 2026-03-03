@@ -138,6 +138,7 @@ ${gamerRetireeInjection}
 `;
 
     try {
+        console.log(`[Debate Stream] Starting for expert: ${expert.name} (${expert.role})`);
         const responseStream = await ai.models.generateContentStream({
             model: 'gemini-2.5-flash',
             contents: prompt
@@ -153,21 +154,45 @@ ${gamerRetireeInjection}
 
                 // スコア抽出
                 if (!reportedScore) {
-                    const scoreMatch = fullText.match(/^\s*(\d{1,3})\s*\n/);
-                    if (scoreMatch) {
-                        if (onScoreMatch) onScoreMatch(parseInt(scoreMatch[1], 10));
-                        reportedScore = true;
+                    // 最初の改行が現れるまでの間に含まれる数値をスコアとみなす（先頭縛りを緩和）
+                    const firstNewlineIndex = fullText.indexOf('\n');
 
-                        // 初回送信
-                        const textPart = fullText.substring(scoreMatch[0].length);
-                        if (textPart.length > 0) {
-                            onChunk(textPart);
+                    if (firstNewlineIndex !== -1) {
+                        const firstLine = fullText.substring(0, firstNewlineIndex);
+                        const scoreMatch = firstLine.match(/(\d{1,3})/);
+
+                        if (scoreMatch) {
+                            console.log(`[Debate Stream] Score extracted for ${expert.name}:`, parseInt(scoreMatch[1], 10));
+                            if (onScoreMatch) onScoreMatch(parseInt(scoreMatch[1], 10));
+                            reportedScore = true;
+                            // スコアが含まれていた行より後のテキストから送信開始
+                            const remainingText = fullText.substring(firstNewlineIndex + 1);
+                            if (remainingText.length > 0) {
+                                onChunk(remainingText);
+                            }
+                        } else {
+                            // 最初の行に数値が全くなかった場合（AIが指示を無視したケース）
+                            // 仕方がないのでデフォルトスコア50とし、全文をテキストとして送信開始
+                            console.log(`[Debate Stream] Warning: No score found in first line for ${expert.name}, defaulting to 50.`);
+                            if (onScoreMatch) onScoreMatch(50);
+                            reportedScore = true;
+                            onChunk(fullText);
                         }
-                    } else if (fullText.length > 20 && !fullText.includes('\n')) {
-                        // AIが「改行せずにスコアを書いた」等のフェイルセーフ（20文字見ても改行がない場合は諦める）
-                        if (onScoreMatch) onScoreMatch(50);
-                        reportedScore = true;
-                        onChunk(fullText);
+                    } else if (fullText.length > 30) {
+                        // 30文字を超えても改行が来ない場合は、改行なしで喋り出していると判定
+                        const scoreMatch = fullText.match(/^(\d{1,3})/);
+                        if (scoreMatch) {
+                            console.log(`[Debate Stream] Score extracted (no early newline) for ${expert.name}:`, parseInt(scoreMatch[1], 10));
+                            if (onScoreMatch) onScoreMatch(parseInt(scoreMatch[1], 10));
+                            reportedScore = true;
+                            const remainingText = fullText.substring(scoreMatch[0].length);
+                            onChunk(remainingText);
+                        } else {
+                            console.log(`[Debate Stream] Warning: No score found (no newline) for ${expert.name}, defaulting to 50.`);
+                            if (onScoreMatch) onScoreMatch(50);
+                            reportedScore = true;
+                            onChunk(fullText);
+                        }
                     }
                 } else {
                     // スコア特定後は残りのチャンクをそのままフロントへ投げ続ける
@@ -176,15 +201,27 @@ ${gamerRetireeInjection}
             }
         }
 
-        // 最終的なテキストを返す
-        const scoreMatch = fullText.match(/^\s*(\d{1,3})\s*\n/);
+        // 最終的なテキストを返すための再パース
         let finalScore = 50;
         let finalContent = fullText.trim();
 
-        if (scoreMatch) {
-            finalScore = parseInt(scoreMatch[1], 10);
-            finalContent = fullText.substring(scoreMatch[0].length).trim();
+        const firstNewlineIndexEnd = fullText.indexOf('\n');
+        if (firstNewlineIndexEnd !== -1) {
+            const firstLineEnd = fullText.substring(0, firstNewlineIndexEnd);
+            const scoreMatchEnd = firstLineEnd.match(/(\d{1,3})/);
+            if (scoreMatchEnd) {
+                finalScore = parseInt(scoreMatchEnd[1], 10);
+                finalContent = fullText.substring(firstNewlineIndexEnd + 1).trim();
+            }
+        } else {
+            const scoreMatchEndFallback = fullText.match(/^(\d{1,3})/);
+            if (scoreMatchEndFallback) {
+                finalScore = parseInt(scoreMatchEndFallback[1], 10);
+                finalContent = fullText.substring(scoreMatchEndFallback[0].length).trim();
+            }
         }
+
+        console.log(`[Debate Stream] Finished for: ${expert.name}. Final score: ${finalScore}, Length: ${finalContent.length}`);
 
         // ストリーミング終了時に総トークンを概算して記録する
         const estimatedTokens = Math.ceil((prompt.length + fullText.length) / 2);
@@ -263,6 +300,13 @@ export const fetchSubscriptionFutureValue = async (sub_name: string): Promise<Fu
 1. 対象サブスクの価値を引き上げる強力なコンテンツ（独占配信、大型IP、続編など）やニュースがあれば、最大3つまで簡潔にリストアップしてください。
 2. それらのラインナップから総合的に見て、今後継続すべき「未来価値のプレイスコア」を0（全く価値なし・目玉ゼロ）から10（絶対に解約してはいけないレベルの熱狂）で診断してください。
 3. 全体の簡潔な要約コメントを作成してください。
+
+必ず以下のJSON形式のみを出力してください。マークダウン等の装飾は不要です。
+{
+    "upcoming_contents": ["コンテンツ1", "コンテンツ2"],
+    "future_score": 8,
+    "summary": "要約コメント"
+}
 `;
 
     try {
@@ -270,21 +314,7 @@ export const fetchSubscriptionFutureValue = async (sub_name: string): Promise<Fu
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
-                tools: [{ googleSearch: {} }],
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        upcoming_contents: {
-                            type: Type.ARRAY,
-                            items: { type: Type.STRING },
-                            description: "目玉となる配信予定やコンテンツ。見つからなければ空配列。"
-                        },
-                        future_score: { type: Type.NUMBER, description: "未来価値のプレイスコア(0〜10の整数)" },
-                        summary: { type: Type.STRING, description: "全体の要約と、継続すべきかの見解コメント" }
-                    },
-                    required: ["upcoming_contents", "future_score", "summary"]
-                }
+                tools: [{ googleSearch: {} }]
             }
         });
 
@@ -295,7 +325,21 @@ export const fetchSubscriptionFutureValue = async (sub_name: string): Promise<Fu
         const estimatedTokens = Math.ceil((prompt.length + resultText.length) / 2);
         recordUsage(estimatedTokens).catch(e => console.error(e));
 
-        return JSON.parse(resultText) as FutureValueAnalysis;
+        try {
+            // "```json ... ```" のような装飾が含まれる場合があるため、最初の "{" から最後の "}" までを抽出
+            const match = resultText.match(/\{[\s\S]*\}/);
+            const jsonText = match ? match[0] : resultText;
+            const parsed = JSON.parse(jsonText);
+
+            return {
+                upcoming_contents: parsed.upcoming_contents || [],
+                future_score: parsed.future_score || 5,
+                summary: parsed.summary || "解析結果なし"
+            };
+        } catch (parseError) {
+            console.error("Gemini Future Value Parse Error:", parseError, "Raw Text:", resultText);
+            return null;
+        }
     } catch (error) {
         console.error('Gemini Future Value Analysis Error:', error);
         return null;
