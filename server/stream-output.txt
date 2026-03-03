@@ -1,0 +1,48 @@
+data: {"type":"connected","message":"SSE connection established"}
+
+data: {"type":"ping","message":"keep-alive"}
+
+data: {"type":"ping","message":"keep-alive"}
+
+data: {"type":"ping","message":"keep-alive"}
+
+data: {"type":"unified_chunk","chunk_text":"<future_value>\n{\n    \"upcoming_contents\": [\n        \"バージョン7.6後期アップデート（2026年3月25日頃）\",\n        \"ドラゴンクエストX 春祭り 2026（2026年3月20日・21日）\",\n        \"バージョン8「時空の迷い子たち オンライン」発売（2026年6月25日）\"\n    ],\n    \"future_score\": 9,\n    \"summary\": \"DQ10は2026年3月に"}
+
+data: {"type":"unified_chunk","chunk_text":"バージョン7.6後期、6月には大型拡張パッケージ「バージョン8 時空の迷い子たち オンライン」のリリースを控えており、今後3〜6ヶ月間で非常に強力な目玉コンテンツが多数予定されています"}
+
+data: {"type":"unified_chunk","chunk_text":"。春祭りなどのイベントも開催され、活発な運営が継続される見込みです。\"\n}\n</"}
+
+data: {"type":"unified_chunk","chunk_text":"future_value>\n<expert_generation>\n[\n    {\n        \"role\": \"アストルティアの守護者\",\n        \"name\": \"古参の冒険者「レジェンド」\",\n        \"perspective\": \"長年のプレイ経験と仲間との絆、広大な世界での自由な冒険、定期的なアップデートによる進化を重視。\",\n        \"tone\": \"熱血的、感情豊か、懐古的だが未来への期待も大きい。\",\n        \"logic_prompt\": \"DQ10は単なるゲームじゃない、人生だ！長年の積み重ねと仲間との思い出は、何物にも代えがたい価値がある。\"\n    },\n    {\n        \"role\": \"時間効率の探求者\",\n        \"name\": \"元廃人「タイムロス」\",\n        \"perspective\": \"MMORPGの無限ループ性、時間的拘束、課金要素による浪費、他の趣味や現実生活への影響を冷静に分析。\",\n        \"tone\": \"冷静、客観的、やや皮肉めいているが、経験に基づいた説得力を持つ。\",\n        \"logic_prompt\": \"DQXに費やした時間は戻らない。他のゲームや現実に目を向ければ、もっと有意義な時間の使い道はいくらでもある。\"\n    },\n    {\n        \"role\": \"オンラインコミュニティ研究家\",\n        \"name\": \"交流のプロ「コネクター」\",\n        \"perspective\": \"オンラインゲームならではのコミュニケーションの価値、イベント参加による新たな体験、現実世界では得られない多様な交流機会。\",\n        \"tone\": \"社交的、前向き、人間関係の重要性を強調。\",\n        \"logic_prompt\": \"DQXの真の魅力は、アストルティアで出会う人々との交流にある。ゲーム内で得られる友情や一体感は、ソロゲーでは味わえない。\"\n    }\n]\n</expert_generation>\n<waste_examples>\n[\n    {\n        \"name\": \"新作ゲームソフト\",\n        \"unit_price\": 8000\n    },\n    {\n        \"name\": \"ゲーム内ガチャ用ジェム\",\n        \"unit_price\": 3000\n    },\n    {\n        \"name\": \"エナジードリンク（10本）\",\n        \"unit_price\": 2000\n    }\n]\n</waste_examples>\n<debate_turn"}
+
+data: {"type":"unified_chunk","chunk_text":" role=\"アストルティアの守護者\" name=\"古参の冒険者「レジェンド」\" score=\"15\">\nDQ10は単なる月額じゃない！3月には7.6後期、6"}
+
+data: {"type":"unified_chunk","chunk_text":"月には待望のVer.8が来る。この物語を見届けずに解約なんてありえない！\n</debate_turn>\n<debate_turn role=\"節約の鬼\" name=\""}
+
+data: {"type":"unified_chunk","chunk_text":"無慈悲な主婦\" score=\"90\">\nたった1500円でも、毎月は大きい。バージョンアップだの祭りだの、誘惑に乗せられて散財するのが目に見えてるわ"}
+
+data: {"type":"unified_chunk","chunk_text":"！\n</debate_turn>\n<debate_turn role=\"時間効率の探求者\" name=\"元廃人「タイムロス」\" score=\"85\">\n分かります、その熱意。でも、気づけば時間"}
+
+data: {"type":"unified_chunk","chunk_text":"もお金も溶けていく。私も経験者ですが、得たのは後悔だけでしたね。\n</debate_turn>\n<debate_turn role=\"オンラインコミュニティ研究家\" name=\"交流のプロ「コネクター」\" score"}
+
+data: {"type":"unified_chunk","chunk_text":"=\"75\">\n人との繋がりは大切ですが、それだけならオフラインイベントでも可能。ゲーム内の友情に固執し、現実を見失うのは本末転倒です。\n</debate_turn>\n<debate_"}
+
+data: {"type":"unified_chunk","chunk_text":"turn role=\"タイムイズマネー\" name=\"冷徹なCEO\" score=\"95\">\n投資対効果を考えましょう。月1500円は年間18000円。その時間と費用を自己"}
+
+data: {"type":"unified_chunk","chunk_text":"投資すれば、どれほどの価値を生み出せるか？\n</debate_turn>\n<debate_turn role=\"アストルティアの守護者\" name=\"古参の冒険者「レジェンド」\" score=\""}
+
+data: {"type":"unified_chunk","chunk_text":"20\">\n過去の思い出や積み重ねた努力はどうなるんですか！バージョン8の新ストーリーや仲間との冒険は、お金では買えない価値がある！\n</debate_turn>\n<debate_"}
+
+data: {"type":"unified_chunk","chunk_text":"turn role=\"時間効率の探求者\" name=\"元廃人「タイムロス」\" score=\"90\">\nその「思い出」は、新しい挑戦を阻む執着に過ぎません。未来に目を向けましょう"}
+
+data: {"type":"unified_chunk","chunk_text":"。私もそうして解放されました。\n</debate_turn>\n<debate_turn role=\"オンラインコミュニティ研究家\" name=\"交流のプロ「コネクター」\" score=\"88\">\n思い出は心の中に残ります。しかし"}
+
+data: {"type":"unified_chunk","chunk_text":"、未来に広がる新たな交流の機会を、このゲームだけに閉じ込めるのは賢明ではありません。\n</debate_turn>\n<debate_turn role=\"節約の鬼\" name=\"無慈悲な主婦"}
+
+data: {"type":"unified_chunk","chunk_text":"\" score=\"100\">\n感情論は通用しません！その1500円で何が買えるか考えてみて。家族の食費、教育費…無駄遣いは許しません！\n</debate_turn>"}
+
+data: {"type":"unified_chunk","chunk_text":"\n<debate_turn role=\"タイムイズマネー\" name=\"冷徹なCEO\" score=\"100\">\n結論です。現状のDQXへの投資は、費用対効果が低いと判断します。即刻"}
+
+data: {"type":"unified_chunk","chunk_text":"解約し、時間と資金をより生産的な活動に振り向けるべきです。"}
+
+data: {"type":"final_verdict","message":"Debate finished"}
+

@@ -37,7 +37,8 @@ router.post('/initiate', async (req: Request, res: Response) => {
             session_id: sessionId,
             message: 'Session initiated successfully',
             expert_selection: cache?.experts || [],
-            future_analysis: cache?.future_analysis || null
+            future_analysis: cache?.future_analysis || null,
+            waste_examples: cache?.waste_examples || null
         });
 
     } catch (error: any) {

@@ -14,6 +14,7 @@ export interface DeliberationSession {
     message: string;
     expert_selection: ExpertSelection[];
     future_analysis?: any;
+    waste_examples?: { name: string; unit_price: number }[];
 }
 
 // 環境変数からAPI URLを取得（Viteの場合は import.meta.env を使用）

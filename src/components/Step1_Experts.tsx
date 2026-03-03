@@ -20,6 +20,7 @@ interface ActiveExpert extends ExpertSelection {
 interface ChatMessage {
     id: string;
     role: string;
+    name: string;
     text: string;
     score?: number;
     isFinished: boolean;
@@ -69,8 +70,8 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                     }));
 
                     const fixedExperts = [
-                        { role: '節約主婦', name: 'オカン', perspective: '家計のやりくりと無駄遣いへの怒り', tone: '関西弁のオカン風', logic_prompt: '', avatar: getAvatarForRole('節約主婦') },
-                        { role: '経営コンサルタント社長', name: 'CEO・剛田', perspective: '費用対効果(ROI)と時間価値のシビアな評価', tone: 'ビジネスライクで高圧的', logic_prompt: '', avatar: getAvatarForRole('経営コンサルタント社長') }
+                        { role: '節約の鬼', name: '無慈悲な主婦', perspective: '1円の無駄も許さない絶対的コストカット', tone: '関西弁のオカン風', logic_prompt: '', avatar: getAvatarForRole('節約主婦') },
+                        { role: 'タイムイズマネー', name: '冷徹なCEO', perspective: '費用対効果(ROI)と時間価値のシビアな評価', tone: 'ビジネスライクで高圧的', logic_prompt: '', avatar: getAvatarForRole('経営コンサルタント社長') }
                     ];
                     setExperts([...initialExperts, ...fixedExperts]);
                 } else {
@@ -135,8 +136,8 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                             if (prevExperts.length > 0) return prevExperts;
                             const dynamicExperts = parsed.map((ex: any) => ({ ...ex, avatar: getAvatarForRole(ex.role) }));
                             const fixedExperts = [
-                                { role: '節約主婦', name: 'オカン', perspective: '家計のやりくり', tone: 'オカン風', logic_prompt: '', avatar: getAvatarForRole('主婦') },
-                                { role: '経営コンサルタント社長', name: 'CEO・剛田', perspective: 'ROI評価', tone: '高圧的', logic_prompt: '', avatar: getAvatarForRole('社長') }
+                                { role: '節約の鬼', name: '無慈悲な主婦', perspective: '1円の無駄も許さない絶対的コストカット', tone: 'オカン風', logic_prompt: '', avatar: getAvatarForRole('主婦') },
+                                { role: 'タイムイズマネー', name: '冷徹なCEO', perspective: '費用対効果(ROI)と時間価値のシビアな評価', tone: '高圧的', logic_prompt: '', avatar: getAvatarForRole('社長') }
                             ];
                             return [...dynamicExperts, ...fixedExperts];
                         });
@@ -242,11 +243,15 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                                     <span>会議ルーム (参加者: 専門家{experts.length}名 + あなた)</span>
                                 </div>
 
-                                {messages.map((msg) => {
-                                    const ex = experts.find(e => e.role === msg.role);
-                                    if (!ex) return null;
-
-                                    const isCurrentlyTalking = !msg.isFinished && !debateFinished;
+                                {messages.map((msg, index) => {
+                                    const matchedEx = experts.find(e => e.role === msg.role || e.name === msg.name);
+                                    const ex = matchedEx || {
+                                        role: msg.role,
+                                        name: msg.name,
+                                        avatar: '👤',
+                                        tone: msg.name.includes('CEO') ? '高圧的' : msg.name.includes('主婦') ? 'オカン風' : '冷静'
+                                    };
+                                    const isCurrentlyTalking = !debateFinished && index === messages.length - 1 && !msg.isFinished;
 
                                     return (
                                         <div key={msg.id} className="chat-message animate-fade-in">
