@@ -153,9 +153,15 @@ router.get('/stream', async (req: Request, res: Response) => {
                 try { experts = JSON.parse(expertMatch[1]); } catch (e) { }
             }
 
-            if (futureAnalysis || experts) {
+            let wasteExamples = null;
+            const wasteMatch = streamText.match(/<waste_examples>([\s\S]*?)<\/waste_examples>/);
+            if (wasteMatch) {
+                try { wasteExamples = JSON.parse(wasteMatch[1]); } catch (e) { }
+            }
+
+            if (futureAnalysis || experts || wasteExamples) {
                 console.log(`[Unified Stream] Saving cache for ${session.target}`);
-                setCache(session.target, session.price || null, futureAnalysis, experts).catch(e => console.error(e));
+                setCache(session.target, session.price || null, futureAnalysis, experts, wasteExamples).catch(e => console.error(e));
             }
         }
 

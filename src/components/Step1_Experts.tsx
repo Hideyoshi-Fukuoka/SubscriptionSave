@@ -6,7 +6,7 @@ import './Step1_Experts.css';
 interface Step1Props {
     subName: string;
     price: number | null;
-    onNext: (futureAnalysis?: any) => void;
+    onNext: (futureAnalysis?: any, wasteExamples?: any[]) => void;
 }
 
 import type { ExpertSelection } from '../utils/api';
@@ -37,6 +37,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
     // 全員の議論が終わったか
     const [debateFinished, setDebateFinished] = useState(false);
     const [futureAnalysisData, setFutureAnalysisData] = useState<any>(null);
+    const [wasteExamples, setWasteExamples] = useState<any[]>([]);
 
     // 専門家ごとのアイコンを適当に割り当てるヘルパー
     const getAvatarForRole = (role: string) => {
@@ -78,6 +79,10 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
 
                 if (sessionData.future_analysis) {
                     setFutureAnalysisData(sessionData.future_analysis);
+                }
+
+                if (sessionData.waste_examples) {
+                    setWasteExamples(sessionData.waste_examples);
                 }
 
                 setLoadingMsg('');
@@ -138,6 +143,15 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                     } catch (e) { }
                 }
 
+                // 2.5. 浪費例の抽出 (<waste_examples> タグ)
+                const wasteMatch = localUnifiedText.match(/<waste_examples>([\s\S]*?)<\/waste_examples>/);
+                if (wasteMatch) {
+                    try {
+                        const parsed = JSON.parse(wasteMatch[1]);
+                        setWasteExamples((prev) => prev.length > 0 ? prev : parsed);
+                    } catch (e) { }
+                }
+
                 // 3. 発言の抽出 (<debate_turn> タグ)
                 // (?:<\/debate_turn>|$) を用いて、ストリーミング途中の未完成タグも拾って描画する
                 const turnMatches = [...localUnifiedText.matchAll(/<debate_turn\s+role="([^"]+)"\s+name="([^"]+)"\s*score="([^"]*)">([\s\S]*?)(?:<\/(?:debate_turn)?>|$)/g)];
@@ -162,6 +176,9 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                 setDebateFinished(true);
                 if (data.futureAnalysis) {
                     setFutureAnalysisData(data.futureAnalysis);
+                }
+                if (data.wasteExamples) {
+                    setWasteExamples(data.wasteExamples);
                 }
                 sse.close();
             } else if (data.type === 'error') {
@@ -238,7 +255,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                                                 <div className="chat-name">
                                                     {ex.role} - {ex.name}
                                                     {msg.score !== undefined && (
-                                                        <span className={`ml - 3 px - 2 py - 0.5 rounded text - xs font - bold ${msg.score >= 80 ? 'bg-red-500/20 text-red-400 border border-red-500/50' :
+                                                        <span className={`ml-3 px-2 py-0.5 rounded text-xs font-bold ${msg.score >= 80 ? 'bg-red-500/20 text-red-400 border border-red-500/50' :
                                                             msg.score >= 50 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' :
                                                                 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                                                             } `}>
@@ -271,7 +288,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                                 {debateFinished && (
                                     <div className="next-action-box animate-fade-in" style={{ animationDelay: '0.5s' }}>
                                         <p>専門家たちの推論と議論が完了しました。次はあなたの「今の利用状況」を教えてください。</p>
-                                        <Button onClick={() => onNext(futureAnalysisData)} variant="danger" className="mt-4">
+                                        <Button onClick={() => onNext(futureAnalysisData, wasteExamples)} variant="danger" className="mt-4">
                                             ヒアリングへ進む
                                         </Button>
                                     </div>

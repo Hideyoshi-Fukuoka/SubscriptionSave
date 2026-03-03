@@ -18,6 +18,7 @@ function App() {
   const [subName, setSubName] = useState<string>('');
   const [price, setPrice] = useState<number | null>(null);
   const [futureAnalysis, setFutureAnalysis] = useState<FutureValueAnalysis | null>(null);
+  const [wasteExamples, setWasteExamples] = useState<any[]>([]);
 
   // 後続ステップで使う状態群
   const [frequency, setFrequency] = useState<number | null>(null);
@@ -40,8 +41,9 @@ function App() {
           />
         );
       case 1:
-        return <Step1_Experts subName={subName} price={price} onNext={(fa) => {
+        return <Step1_Experts subName={subName} price={price} onNext={(fa, we) => {
           if (fa) setFutureAnalysis(fa);
+          if (we) setWasteExamples(we);
           setStep(2);
         }} />;
       case 2:
@@ -55,7 +57,7 @@ function App() {
         );
       case 3:
       case 4:
-        return <Step3_Visualize subName={subName} frequency={frequency} futureAnalysis={futureAnalysis} onNext={() => setStep(5)} />;
+        return <Step3_Visualize subName={subName} frequency={frequency} futureAnalysis={futureAnalysis} wasteExamples={wasteExamples} onNext={() => setStep(5)} />;
       case 5:
       case 6:
         return (

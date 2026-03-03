@@ -1,11 +1,17 @@
 import { supabase } from '../utils/supabaseClient';
 import { ExpertData, FutureValueAnalysis } from './gemini';
 
+export interface WasteItem {
+    name: string;
+    unit_price: number;
+}
+
 export interface SubscriptionCache {
     subscription_name: string;
     price: number | null;
     future_analysis: FutureValueAnalysis | null;
     experts: ExpertData[] | null;
+    waste_examples?: WasteItem[] | null;
     created_at: string;
 }
 
@@ -60,20 +66,24 @@ export const setCache = async (
     subName: string,
     price: number | null,
     futureAnalysis: FutureValueAnalysis | null,
-    experts: ExpertData[] | null
+    experts: ExpertData[] | null,
+    wasteExamples?: WasteItem[] | null
 ): Promise<void> => {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) return;
 
     const normalizedName = normalizeSubName(subName);
 
     try {
-        const payload = {
+        const payload: any = {
             subscription_name: normalizedName,
             price,
             future_analysis: futureAnalysis,
             experts,
             created_at: new Date().toISOString()
         };
+        if (wasteExamples !== undefined) {
+            payload.waste_examples = wasteExamples;
+        }
 
         const { error } = await supabase
             .from('subscription_cache')

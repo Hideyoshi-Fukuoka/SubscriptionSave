@@ -7,10 +7,11 @@ interface Step3Props {
     subName: string;
     frequency: number | null;
     futureAnalysis?: any;
+    wasteExamples?: any[];
     onNext: () => void;
 }
 
-export const Step3_Visualize: React.FC<Step3Props> = ({ subName, frequency, futureAnalysis, onNext }) => {
+export const Step3_Visualize: React.FC<Step3Props> = ({ subName, frequency, futureAnalysis, wasteExamples, onNext }) => {
     const [calculating, setCalculating] = useState(true);
 
     // モックの月額（本番ではStep0で取得した値を渡すか、グローバルステート管理）
@@ -44,6 +45,20 @@ export const Step3_Visualize: React.FC<Step3Props> = ({ subName, frequency, futu
 
     const getWasteExamples = (amount: number) => {
         if (amount <= 0) return null;
+
+        // 動的生成されたリストがある場合はそれを基準に算出
+        if (wasteExamples && wasteExamples.length > 0) {
+            return wasteExamples.map(ex => {
+                const count = Math.floor(amount / (ex.unit_price || 1));
+                return {
+                    name: ex.name,
+                    count: count + (ex.unit_price > 1000 ? '回分' : '個分'),
+                    icon: <Package size={20} />
+                };
+            }).filter(ex => parseInt(ex.count) > 0); // 1個にも満たないものは除外
+        }
+
+        // フォールバック（固定の例）
         return [
             { name: '天狗のビーフジャーキー', count: (amount / 1000).toFixed(1) + '袋分', icon: <Package size={20} /> },
             { name: '特売の卵パック（10個）', count: Math.floor(amount / 250) + 'パック分', icon: <Package size={20} /> },
@@ -141,7 +156,7 @@ export const Step3_Visualize: React.FC<Step3Props> = ({ subName, frequency, futu
                                 <div className="score-label">V_FUTURE<br />(未来価値プレイスコア)</div>
                                 <div className="score-value-wrapper">
                                     <span className={`score-number ${futureAnalysis.future_score <= 3 ? 'critical' :
-                                            futureAnalysis.future_score <= 7 ? 'warning' : 'safe'
+                                        futureAnalysis.future_score <= 7 ? 'warning' : 'safe'
                                         }`}>
                                         {futureAnalysis.future_score}
                                     </span>
