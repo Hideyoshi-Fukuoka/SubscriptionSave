@@ -127,29 +127,39 @@ export const Step3_Visualize: React.FC<Step3Props> = ({ subName, frequency, futu
                     {renderWasteVisuals()}
 
                     {futureAnalysis && (
-                        <div className="roadmap-alert-box animate-fade-in" style={{ animationDelay: '0.8s' }}>
-                            <div className="roadmap-header">
-                                <AlertCircle size={24} className={futureAnalysis.future_score >= 8 ? "text-success" : "text-danger"} />
-                                <h3>未来予測エージェント (Web検索解析)</h3>
+                        <div className="cyber-box animate-fade-in" style={{ animationDelay: '0.8s' }}>
+                            <div className="cyber-header">
+                                <AlertCircle size={24} color="#00f3ff" />
+                                <h3>Deep Scan Completed</h3>
                             </div>
-                            <p className="roadmap-verdict">{futureAnalysis.summary}</p>
 
-                            <div className="roadmap-data-grid">
-                                <div className="roadmap-data-item">
-                                    <span className="data-label">V_future (未来価値プレイスコア)</span>
-                                    <span className={`data-value ${futureAnalysis.future_score >= 8 ? 'text-success' : 'text-danger'}`}>
-                                        {futureAnalysis.future_score} / 10
+                            <div className="cyber-summary">
+                                [{futureAnalysis.summary}]
+                            </div>
+
+                            <div className="cyber-score-container">
+                                <div className="score-label">V_FUTURE<br />(未来価値プレイスコア)</div>
+                                <div className="score-value-wrapper">
+                                    <span className={`score-number ${futureAnalysis.future_score <= 3 ? 'critical' :
+                                            futureAnalysis.future_score <= 7 ? 'warning' : 'safe'
+                                        }`}>
+                                        {futureAnalysis.future_score}
                                     </span>
+                                    <span className="score-max">/ 10</span>
                                 </div>
                             </div>
 
                             {futureAnalysis.upcoming_contents && futureAnalysis.upcoming_contents.length > 0 && (
-                                <div className="roadmap-contents">
-                                    <h4>【近日配信予定の目玉コンテンツ・アップデート】</h4>
-                                    <ul>
+                                <div className="mt-4">
+                                    <h4 className="text-[#00f3ff] text-sm font-bold mb-3 uppercase tracking-widest border-b border-[#00f3ff]/30 pb-1">
+                                        // Detected Upcoming Contents
+                                    </h4>
+                                    <ul className="cyber-list">
                                         {futureAnalysis.upcoming_contents.map((c: string, i: number) => (
                                             <li key={i}>
-                                                <span className="content-title" style={{ fontWeight: 'normal' }}>{c}</span>
+                                                <span className="typing-effect" style={{ animationDelay: `${i * 1.5}s` }}>
+                                                    {c}
+                                                </span>
                                             </li>
                                         ))}
                                     </ul>
