@@ -21,9 +21,17 @@ const Step0_Input: React.FC<Step0Props> = ({ subName, setSubName, price, setPric
         setIsSearching(true);
 
         try {
-            // バックエンドAPI経由でGoogle検索を利用し、最新料金を取得
-            const fetchedPrice = await fetchSubscriptionPrice(subName);
-            setPrice(fetchedPrice || 1500); // 取得失敗時はフォールバックとして1500をセット
+            // バックエンドAPI経由でGoogle検索を利用し、最新料金と正式名称を推測・取得
+            const result = await fetchSubscriptionPrice(subName);
+            if (result !== null) {
+                setPrice(result.price !== undefined && result.price !== null ? result.price : 1500);
+                if (result.formal_name && result.formal_name !== subName) {
+                    // 推測された正式名称があれば、自動でサジェスト上書きする
+                    setSubName(result.formal_name);
+                }
+            } else {
+                setPrice(1500); // 取得失敗時はフォールバックとして1500をセット
+            }
         } catch (error: any) {
             console.error("Error fetching price", error);
             if (error.message && error.message.includes('予算')) {

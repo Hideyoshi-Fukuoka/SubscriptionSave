@@ -238,17 +238,22 @@ ${gamerRetireeInjection}
     }
 };
 
-export const fetchSubscriptionPrice = async (sub_name: string): Promise<number | null> => {
+export const fetchSubscriptionPrice = async (sub_name: string): Promise<{ price: number, formal_name: string } | null> => {
     const prompt = `
 # Task
 あなたは優秀なリサーチャーです。対象のサブスクリプションサービスの【日本国内における最新の標準的な月額料金（円）】を、ウェブ検索を用いて特定してください。
+また、対象「${sub_name}」が略称や俗称（例: dq10, ネトフリ, アマプラ）の場合、正式名称（例: ドラゴンクエストX, Netflix, Amazon Prime）を文脈や検索結果から推測してください。明確に正式名である場合はそのまま使用してください。
 
 # Target
-対象サブスクリプション: ${sub_name}
+対象: ${sub_name}
 
 # Output format
-出力は絶対に「数値（整数）のみ」としてください。カンマ、円、説明文などの装飾は一切不要です。（例: 1500）
-もし無料サービスであったり、月額サービスでない等で特定が困難な場合は、「0」を出力してください。
+必ず以下のJSON形式のみを出力してください。装飾文字や説明文は一切不要です。
+もし無料サービスであったり、特定が困難な場合は price を 0 としてください。
+{
+    "formal_name": "推測した正式名称",
+    "price": 1500
+}
 `;
 
     try {
@@ -267,13 +272,19 @@ export const fetchSubscriptionPrice = async (sub_name: string): Promise<number |
         const estimatedTokens = Math.ceil((prompt.length + resultText.length) / 2);
         recordUsage(estimatedTokens).catch(e => console.error(e));
 
-        // 文字列から「連続する数値（カンマ含む）」を抽出する
-        // 例: "約1,490円" や "Netflixは1,500円です" から "1,490", "1,500" を取り出す
-        const match = resultText.match(/\d+(?:,\d+)?/);
-        if (!match) return null;
+        try {
+            const match = resultText.match(/\{[\s\S]*\}/);
+            const jsonText = match ? match[0] : resultText;
+            const parsed = JSON.parse(jsonText);
 
-        const price = parseInt(match[0].replace(/,/g, ''), 10);
-        return isNaN(price) ? null : price;
+            return {
+                formal_name: parsed.formal_name || sub_name,
+                price: typeof parsed.price === 'number' ? parsed.price : parseInt(String(parsed.price).replace(/,/g, ''), 10) || 0
+            };
+        } catch (e) {
+            console.error("Price JSON parse error:", e, "Raw text:", resultText);
+            return null;
+        }
 
     } catch (error) {
         console.error('Gemini Price Fetch Error:', error);
@@ -343,5 +354,136 @@ export const fetchSubscriptionFutureValue = async (sub_name: string): Promise<Fu
     } catch (error) {
         console.error('Gemini Future Value Analysis Error:', error);
         return null;
+    }
+};
+
+/**
+ * プロンプト統合版：未来価値算出、専門家生成、5ターンの議論を1回のストリーミングで行う
+ */
+export const streamUnifiedDeliberation = async (
+    sub_name: string,
+    category: string,
+    price: number | null,
+    user_context: any,
+    onChunk: (text: string) => void,
+    cachedData?: { future: any, experts: any }
+) => {
+    const isCached = cachedData && cachedData.experts && cachedData.experts.length > 0;
+    const currentDate = new Date().toLocaleDateString('ja-JP');
+
+    const basePrompt = `
+# Role: サブスク断捨離の守護神 (統合オーケストレーター)
+対象のサブスクリプションについて、未来価値の分析、専門家の選定、そして5名による解約を巡る白熱した議論をすべて一気に実行してください。
+
+# System Context
+- 現在の日本時間は 【${currentDate}】 です。これより先のアップデート予定などはこの基準日から正確に計算してください。
+
+# Input Data
+- サブスク名: ${sub_name}
+- カテゴリ: ${category}
+- 料金: ${price !== null ? price + '円/月' : '不明（または無料）'}
+- ユーザーの悩み/状況: ${JSON.stringify(user_context)}
+`;
+
+    let stepInstructions = "";
+
+    const debateRules = `
+## Step 3: 5名によるターン制議論 (<debate_turn>タグ)
+さきほどの3名（キャッシュ時はリストの3名）と、固定の「主婦」「CEO」を加えた【計5名】で、解約すべきか激しく議論させてください。
+固定専門家1: role="節約の鬼", name="無慈悲な主婦", perspective="1円の無駄も許さない絶対的コストカット"
+固定専門家2: role="タイムイズマネー", name="冷徹なCEO", perspective="費用対効果(ROI)と時間価値のシビアな評価"
+
+【議論の厳格なルール】
+1. **短く鋭く**: 各発言は必ず【150文字以内で、短文で完結】させてください。長広舌はテンポを損なうため厳禁です。
+2. **ターン制の役割**: 5ターン（1人1回）で以下のステップを踏み、同じ論点を繰り返さず深みのある議論を展開してください。
+   - ターン1 (分析担当): 未来価値データの事実を突きつけ、最初の厳しい宣告をする
+   - ターン2 (反論担当): 別の視点（過去の思い出や可能性）から「いや、それでも価値がある」と反論する
+   - ターン3 (情動/経験担当): 過去の経験（引退勢の絶望等）などを織り交ぜ、ターン2を冷たく論破する
+   - ターン4 (CEOまたは主婦): お金や時間（ROI）の絶対的な数字を根拠に、完全にトドメを刺す宣告をする
+   - ターン5 (総括担当): 最後に、ユーザーへ感情に訴えかける一言で結論を締める
+
+出力形式:
+<debate_turn role="役割名" name="キャラクター名" score="85">
+ここに発言内容を出力してください（150文字以内）。
+</debate_turn>
+※ score属性は「解約推奨度スコア」(0=絶対継続、100=今すぐ解約) を入れてください。
+`;
+
+    if (isCached) {
+        stepInstructions = `
+すでに過去の分析によって、以下のデータが確定しています。
+【未来価値データ】 ${JSON.stringify(cachedData.future)}
+【専門家リスト】 ${JSON.stringify(cachedData.experts)}
+
+# Task
+あなたはStep1(未来価値分析)とStep2(専門家生成)を行う必要はありません。直ちに以下の【専門家リスト】と固定2名で議論を開始してください。
+${debateRules}
+出力は余計な前置きをせず、直ちに最初の <debate_turn> タグから開始してください。
+`;
+    } else {
+        stepInstructions = `
+# Task
+以下の順番で必ず「XMLライクなタグ」を用いて出力してください。テキストは生成された端からストリーミングされます。
+
+## Step 1: 未来価値分析 (<future_value>タグ)
+Google検索機能を用いて、「${sub_name}」に関する近日中（現在の ${currentDate} からむこう3〜6ヶ月以内）の強力な配信予定や目玉コンテンツを検索・分析してください。
+出力形式 (必ず内部はJSON構造にすること):
+<future_value>
+{
+    "upcoming_contents": ["目玉コンテンツ1", "目玉コンテンツ2"],
+    "future_score": 8,
+    "summary": "要約コメント"
+}
+</future_value>
+※ future_scoreは0〜10の整数。
+
+## Step 2: 専門家の動的生成 (<expert_generation>タグ)
+対象サブスクに特化した専用の専門家を【3名】生成してください。※対象がゲーム等の場合は1名を「重課金引退勢」等にしてください。
+出力形式 (必ず内部はJSON配列構造にすること):
+<expert_generation>
+[
+    {
+        "role": "役割名",
+        "name": "二つ名",
+        "perspective": "評価軸",
+        "tone": "話し方の特徴",
+        "logic_prompt": "短めの主張の核"
+    }
+]
+</expert_generation>
+
+${debateRules}
+出力は余計な前置きを一切せず、直ちに <future_value> から開始してください。
+`;
+    }
+
+    const prompt = basePrompt + stepInstructions;
+
+    try {
+        const responseStream = await ai.models.generateContentStream({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                tools: isCached ? [] : [{ googleSearch: {} }], // キャッシュ時はGrounding不要
+            }
+        });
+
+        let fullText = "";
+        for await (const chunk of responseStream) {
+            const chunkText = chunk.text;
+            if (chunkText) {
+                fullText += chunkText;
+                onChunk(chunkText);
+            }
+        }
+
+        const estimatedTokens = Math.ceil((prompt.length + fullText.length) / 2);
+        recordUsage(estimatedTokens).catch(e => console.error(e));
+
+        return fullText;
+
+    } catch (error) {
+        console.error('Gemini Unified Stream Error:', error);
+        throw error;
     }
 };

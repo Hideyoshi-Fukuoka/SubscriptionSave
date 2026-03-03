@@ -54,25 +54,39 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
 
         const setupDeliberation = async () => {
             try {
-                // 1. Session Initiate (Orchestratorによる動的アサイン)
+                // 1. Session Initiate (Orchestratorによる動的アサイン または キャッシュ復元)
                 const sessionData = await initiateDeliberation(subName, price);
                 if (!isMounted) return;
 
                 setSessionId(sessionData.session_id);
 
-                // 初期状態のエキスパートリストをフロント用に拡張してセット
-                const initialExperts = sessionData.expert_selection.map((ex: ExpertSelection) => ({
-                    ...ex,
-                    avatar: getAvatarForRole(ex.role)
-                }));
-                setExperts(initialExperts);
+                // キャッシュがある場合はここで初期セットされる（ない場合は空配列）
+                if (sessionData.expert_selection && sessionData.expert_selection.length > 0) {
+                    const initialExperts = sessionData.expert_selection.map((ex: any) => ({
+                        ...ex,
+                        avatar: getAvatarForRole(ex.role)
+                    }));
+
+                    const fixedExperts = [
+                        { role: '節約主婦', name: 'オカン', perspective: '家計のやりくりと無駄遣いへの怒り', tone: '関西弁のオカン風', logic_prompt: '', avatar: getAvatarForRole('節約主婦') },
+                        { role: '経営コンサルタント社長', name: 'CEO・剛田', perspective: '費用対効果(ROI)と時間価値のシビアな評価', tone: 'ビジネスライクで高圧的', logic_prompt: '', avatar: getAvatarForRole('経営コンサルタント社長') }
+                    ];
+                    setExperts([...initialExperts, ...fixedExperts]);
+                } else {
+                    setExperts([]);
+                }
+
+                if (sessionData.future_analysis) {
+                    setFutureAnalysisData(sessionData.future_analysis);
+                }
+
                 setLoadingMsg('');
 
             } catch (err: any) {
                 console.error("Initiation Failed", err);
                 if (isMounted) {
                     if (err.message && err.message.includes('予算')) {
-                        setLoadingMsg(`【システムエラー】: \n${err.message} `);
+                        setLoadingMsg(`【システムエラー】: \n${err.message}`);
                     } else {
                         setLoadingMsg('専門家の召喚に失敗しました。再試行してください。');
                     }
@@ -89,48 +103,61 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
     useEffect(() => {
         if (!showDebate || !sessionId) return;
 
+        let localUnifiedText = "";
+
         const sse = subscribeToDeliberationStream(sessionId, (data) => {
             if (data.type === 'connected') {
                 console.log('SSE Connected');
-            } else if (data.type === 'agent_start') {
-                // 新しい発言（吹き出し）を開始する
-                setMessages(prev => {
-                    // 以前のすべてのメッセージを「完了」にする
-                    const markedPrev = prev.map(m => ({ ...m, isFinished: true }));
-                    const msgId = `${data.role}_${data.turn} `;
-                    return [...markedPrev, { id: msgId, role: data.role, text: '', isFinished: false }];
-                });
-            } else if (data.type === 'agent_chunk') {
-                // チャンクを受信して最後のメッセージに追記する
-                setMessages(prev => {
-                    if (prev.length === 0) return prev;
-                    const newMessages = [...prev];
-                    const lastIndex = newMessages.length - 1;
-                    // ロールが一致している場合のみ追記（念のため）
-                    if (newMessages[lastIndex].role === data.role) {
-                        newMessages[lastIndex] = {
-                            ...newMessages[lastIndex],
-                            text: newMessages[lastIndex].text + data.chunk_text
+            } else if (data.type === 'unified_chunk') {
+                localUnifiedText += data.chunk_text;
+
+                // 1. 未来価値の抽出 (<future_value> タグ)
+                const futureMatch = localUnifiedText.match(/<future_value>([\s\S]*?)<\/future_value>/);
+                if (futureMatch) {
+                    try {
+                        const parsed = JSON.parse(futureMatch[1]);
+                        setFutureAnalysisData((prev: any) => prev || parsed);
+                    } catch (e) { }
+                }
+
+                // 2. 専門家の抽出 (<expert_generation> タグ)
+                const expertMatch = localUnifiedText.match(/<expert_generation>([\s\S]*?)<\/expert_generation>/);
+                if (expertMatch) {
+                    try {
+                        const parsed = JSON.parse(expertMatch[1]);
+                        setExperts((prevExperts) => {
+                            // 既にキャッシュからセットされている場合は何もしない
+                            if (prevExperts.length > 0) return prevExperts;
+                            const dynamicExperts = parsed.map((ex: any) => ({ ...ex, avatar: getAvatarForRole(ex.role) }));
+                            const fixedExperts = [
+                                { role: '節約主婦', name: 'オカン', perspective: '家計のやりくり', tone: 'オカン風', logic_prompt: '', avatar: getAvatarForRole('主婦') },
+                                { role: '経営コンサルタント社長', name: 'CEO・剛田', perspective: 'ROI評価', tone: '高圧的', logic_prompt: '', avatar: getAvatarForRole('社長') }
+                            ];
+                            return [...dynamicExperts, ...fixedExperts];
+                        });
+                    } catch (e) { }
+                }
+
+                // 3. 発言の抽出 (<debate_turn> タグ)
+                // (?:<\/debate_turn>|$) を用いて、ストリーミング途中の未完成タグも拾って描画する
+                const turnMatches = [...localUnifiedText.matchAll(/<debate_turn\s+role="([^"]+)"\s+name="([^"]+)"\s*score="([^"]*)">([\s\S]*?)(?:<\/(?:debate_turn)?>|$)/g)];
+                if (turnMatches.length > 0) {
+                    const parsedMessages = turnMatches.map((match, index) => {
+                        const rawTag = match[0];
+                        const isFinished = rawTag.includes('</debate_turn>');
+                        return {
+                            id: `turn_${index}`,
+                            role: match[1],
+                            name: match[2],
+                            score: parseInt(match[3]) || undefined,
+                            text: match[4].replace(/<\/?[^>]+(>|$)/g, "").trim(), // 万が一内部にタグが入っても除去
+                            isFinished
                         };
-                    }
-                    return newMessages;
-                });
-            } else if (data.type === 'agent_score') {
-                // スコアを受信してメッセージに紐付ける
-                setMessages(prev => {
-                    if (prev.length === 0) return prev;
-                    const newMessages = [...prev];
-                    const lastIndex = newMessages.length - 1;
-                    if (newMessages[lastIndex].role === data.role) {
-                        newMessages[lastIndex] = {
-                            ...newMessages[lastIndex],
-                            score: data.score
-                        };
-                    }
-                    return newMessages;
-                });
+                    });
+                    setMessages(parsedMessages);
+                }
+
             } else if (data.type === 'final_verdict') {
-                // 全員の議論終了通知
                 setMessages(prev => prev.map(m => ({ ...m, isFinished: true })));
                 setDebateFinished(true);
                 if (data.futureAnalysis) {
@@ -139,13 +166,11 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                 sse.close();
             } else if (data.type === 'error') {
                 console.error('SSE Error:', data.message);
-                // エラー時もフリーズを避けるため終了状態にする
                 setMessages(prev => prev.map(m => ({ ...m, isFinished: true })));
                 setDebateFinished(true);
                 sse.close();
             } else if (data.type === 'ping') {
-                // バックエンドからのハートビート（タイムアウト防止用）は無視して接続を維持
-                // console.log('Heartbeat received.');
+                // Heartbeat
             }
         });
 
@@ -180,7 +205,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                     <div className="options-pre-debate animate-fade-in">
                         <div className="alert-box">
                             <AlertTriangle size={24} className="alert-icon" />
-                            <p>審議が完了しました。かなり厳しい意見が出ているようです。</p>
+                            <p>ターゲット捕捉完了。サブスクリプションの真の価値と解約すべきかについて、専門家を召喚して議論を開始します。</p>
                         </div>
 
                         {!showDebate ? (
@@ -214,8 +239,8 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                                                     {ex.role} - {ex.name}
                                                     {msg.score !== undefined && (
                                                         <span className={`ml - 3 px - 2 py - 0.5 rounded text - xs font - bold ${msg.score >= 80 ? 'bg-red-500/20 text-red-400 border border-red-500/50' :
-                                                                msg.score >= 50 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' :
-                                                                    'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                                                            msg.score >= 50 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' :
+                                                                'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
                                                             } `}>
                                                             解約推奨度: {msg.score}
                                                         </span>

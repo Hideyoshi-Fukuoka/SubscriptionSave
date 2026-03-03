@@ -10,4 +10,7 @@ if (!supabaseUrl || !supabaseKey) {
     console.warn('⚠️ SUPABASE_URL or SUPABASE_ANON_KEY is missing. Cache feature will be disabled.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(
+    supabaseUrl || 'https://dummy.supabase.co',
+    supabaseKey || 'dummy'
+);

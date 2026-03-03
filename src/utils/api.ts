@@ -13,6 +13,7 @@ export interface DeliberationSession {
     session_id: string;
     message: string;
     expert_selection: ExpertSelection[];
+    future_analysis?: any;
 }
 
 // 環境変数からAPI URLを取得（Viteの場合は import.meta.env を使用）
@@ -90,7 +91,7 @@ export const subscribeToDeliberationStream = (
 /**
  * 外部検索を利用して対象サブスクリプションの最新料金（日本国内）を取得する
  */
-export const fetchSubscriptionPrice = async (subName: string): Promise<number | null> => {
+export const fetchSubscriptionPrice = async (subName: string): Promise<{ price: number, formal_name?: string } | null> => {
     try {
         const response = await fetch(`${API_BASE_URL}/deliberation/price?name=${encodeURIComponent(subName)}`);
 
@@ -100,7 +101,10 @@ export const fetchSubscriptionPrice = async (subName: string): Promise<number | 
         }
 
         const data = await response.json();
-        return data.price;
+        return {
+            price: data.price,
+            formal_name: data.formal_name
+        };
     } catch (error) {
         console.error('Failed to fetch subscription price:', error);
         return null; // エラー時はnullを返し、フロントのデフォルトフローにフォールバックさせる
