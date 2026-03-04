@@ -492,11 +492,34 @@ ${debateRules}
         });
 
         let fullText = "";
+        let inDebatePhase = false;
+        let emittedText = "";
+
         for await (const chunk of responseStream) {
             const chunkText = chunk.text;
             if (chunkText) {
                 fullText += chunkText;
-                onChunk(chunkText);
+
+                if (!inDebatePhase && fullText.includes('<debate_turn')) {
+                    inDebatePhase = true;
+                    // フロントエンドでの入室演出アニメーション（0.8秒×5名分）を待つための初期ディレイ
+                    await new Promise(r => setTimeout(r, 4000));
+                }
+
+                if (inDebatePhase) {
+                    for (const char of chunkText) {
+                        onChunk(char);
+                        emittedText += char;
+                        await new Promise(r => setTimeout(r, 30));
+
+                        if (emittedText.endsWith('</debate_turn>')) {
+                            await new Promise(r => setTimeout(r, 2000));
+                        }
+                    }
+                } else {
+                    onChunk(chunkText);
+                    emittedText += chunkText;
+                }
             }
         }
 

@@ -29,6 +29,7 @@ interface ChatMessage {
 export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) => {
     const [showDebate, setShowDebate] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState('Orchestratorが最適な専門家を召喚中...');
+    const [entranceIndex, setEntranceIndex] = useState(-1);
 
     // セッションとSSEの参照
     const [sessionId, setSessionId] = useState<string | null>(null);
@@ -198,9 +199,20 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
     }, [showDebate, sessionId]);
 
     // 議論を見るボタンを押した後のタイピング・フェードイン演出
-
-
-
+    useEffect(() => {
+        if (showDebate && experts.length > 0) {
+            let i = 0;
+            setEntranceIndex(0);
+            const timer = setInterval(() => {
+                i++;
+                setEntranceIndex(i);
+                if (i >= experts.length) {
+                    clearInterval(timer);
+                }
+            }, 800);
+            return () => clearInterval(timer);
+        }
+    }, [showDebate, experts.length]);
 
     return (
         <div className="step-container animate-fade-in glass-panel experts-panel">
@@ -243,6 +255,16 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                                     <span>会議ルーム (参加者: 専門家{experts.length}名 + あなた)</span>
                                 </div>
 
+                                {/* 入室ログ */}
+                                {experts.slice(0, Math.max(0, entranceIndex)).map((ex, i) => (
+                                    <div key={`entrance_${i}`} className="chat-message animate-fade-in text-sm text-gray-400 justify-center my-2">
+                                        <div className="bg-gray-800/80 rounded-full px-4 py-1.5 flex items-center gap-2 border border-gray-700/50 shadow-sm shadow-black/50">
+                                            <span>{ex.avatar}</span>
+                                            <span>{ex.role} <span className="opacity-70">({ex.name})</span> が入室しました</span>
+                                        </div>
+                                    </div>
+                                ))}
+
                                 {messages.map((msg, index) => {
                                     const matchedEx = experts.find(e => e.role === msg.role || e.name === msg.name);
                                     const ex = matchedEx || {
@@ -280,7 +302,7 @@ export const Step1_Experts: React.FC<Step1Props> = ({ subName, price, onNext }) 
                                     );
                                 })}
                                 {/* 発言がまだ始まっていない場合のシークレット待機表示 */}
-                                {messages.length === 0 && (
+                                {messages.length === 0 && entranceIndex >= experts.length && (
                                     <div className="chat-message animate-pulse duration-1000">
                                         <div className="chat-avatar">🤖</div>
                                         <div className="chat-content">
